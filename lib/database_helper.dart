@@ -31,7 +31,7 @@ class DatabaseHelper {
       // Open the database
       return await openDatabase(
         path,
-        version: 3,
+        version: 5,
         onCreate: (Database db, int version) async {
           print('Creating new database...');
           // Create tables and insert initial data
@@ -44,6 +44,8 @@ class DatabaseHelper {
             await db.execute(
               'ALTER TABLE Users ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP',
             );
+              await db.execute('DROP TABLE IF EXISTS Warehouses');
+              await db.execute('DROP TABLE IF EXISTS Inventory');
           }
           if (oldVersion < 3) {
             await db.execute('''
@@ -156,29 +158,9 @@ class DatabaseHelper {
         category_id INTEGER,
         supplier_id INTEGER,
         price NUMERIC(10,2) NOT NULL,
-        unit TEXT NOT NULL,
+        quantity INTEGER NOT NULL,
         FOREIGN KEY (category_id) REFERENCES Categories (category_id) ON DELETE SET NULL,
         FOREIGN KEY (supplier_id) REFERENCES Suppliers (supplier_id) ON DELETE SET NULL
-      )
-    ''');
-
-    await db.execute('''
-      CREATE TABLE Warehouses (
-        warehouse_id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        location TEXT NOT NULL
-      )
-    ''');
-
-    await db.execute('''
-      CREATE TABLE Inventory (
-        inventory_id INTEGER PRIMARY KEY AUTOINCREMENT,
-        warehouse_id INTEGER,
-        product_id INTEGER,
-        quantity INTEGER NOT NULL,
-        last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (warehouse_id) REFERENCES Warehouses (warehouse_id) ON DELETE CASCADE,
-        FOREIGN KEY (product_id) REFERENCES Products (product_id) ON DELETE CASCADE
       )
     ''');
 
@@ -220,12 +202,12 @@ class DatabaseHelper {
     await db.execute('''
       CREATE TABLE Transactions (
         transaction_id INTEGER PRIMARY KEY AUTOINCREMENT,
-        inventory_id INTEGER,
+        product_id INTEGER NOT NULL,
         transaction_type TEXT NOT NULL,
         quantity INTEGER NOT NULL,
-        transaction_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (inventory_id) REFERENCES Inventory (inventory_id) ON DELETE CASCADE
-      )
+        transaction_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (product_id) REFERENCES Products (product_id)
+      );
     ''');
 
     // Вставка начальных данных
@@ -254,8 +236,6 @@ class DatabaseHelper {
         'Suppliers',
         'Categories',
         'Products',
-        'Warehouses',
-        'Inventory',
         'Customers',
         'Orders',
         'Order_Details',
@@ -292,109 +272,11 @@ class DatabaseHelper {
       });
       print('Created regular user');
 
-      // Добавляем поставщиков
-      await db.insert('Suppliers', {
-        'name': 'Поставщик 1',
-        'contact_name': 'Иван Иванов',
-        'phone': '+7 (999) 123-45-67',
-        'email': 'supplier1@example.com',
-        'address': 'Москва, ул. Ленина, д. 10',
-      });
-      print('Created supplier 1');
-
-      await db.insert('Suppliers', {
-        'name': 'Поставщик 2',
-        'contact_name': 'Петр Петров',
-        'phone': '+7 (999) 765-43-21',
-        'email': 'supplier2@example.com',
-        'address': 'Санкт-Петербург, ул. Пушкина, д. 5',
-      });
-      print('Created supplier 2');
-
-      // Добавляем категории
-      final category1Id = await db.insert('Categories', {
-        'name': 'Электроника',
-        'description': 'Товары из категории электроники',
-      });
-      print('Created category 1');
-
-      final category2Id = await db.insert('Categories', {
-        'name': 'Одежда',
-        'description': 'Товары из категории одежды',
-      });
-      print('Created category 2');
-
-      // Добавляем товары
-      await db.insert('Products', {
-        'name': 'Смартфон',
-        'category_id': category1Id,
-        'supplier_id': 1,
-        'price': 29999.99,
-        'unit': 'шт.',
-      });
-      print('Created product 1');
-
-      await db.insert('Products', {
-        'name': 'Ноутбук',
-        'category_id': category1Id,
-        'supplier_id': 2,
-        'price': 89999.99,
-        'unit': 'шт.',
-      });
-      print('Created product 2');
-
-      // Добавляем склады
-      final warehouse1Id = await db.insert('Warehouses', {
-        'name': 'Склад 1',
-        'location': 'Москва, ул. Ленина, д. 15',
-      });
-      print('Created warehouse 1');
-
-      final warehouse2Id = await db.insert('Warehouses', {
-        'name': 'Склад 2',
-        'location': 'Санкт-Петербург, ул. Пушкина, д. 20',
-      });
-      print('Created warehouse 2');
-
-      // Добавляем инвентарь
-      await db.insert('Inventory', {
-        'warehouse_id': warehouse1Id,
-        'product_id': 1,
-        'quantity': 100,
-      });
-      print('Created inventory 1');
-
-      await db.insert('Inventory', {
-        'warehouse_id': warehouse2Id,
-        'product_id': 2,
-        'quantity': 50,
-      });
-      print('Created inventory 2');
-
       print('Initial data insertion completed successfully');
     } catch (e) {
       print('Error inserting initial data: $e');
       throw e; // Пробрасываем ошибку дальше для обработки
     }
-  }
-
-  Future<List<WarehouseStock>> getWarehouseStock() async {
-    final db = await this.database;
-    final result = await db.rawQuery('''
-      SELECT w.name as warehouseName, SUM(i.quantity) as totalQuantity
-      FROM Inventory i
-      JOIN Warehouses w ON i.warehouse_id = w.warehouse_id
-      GROUP BY w.warehouse_id
-    ''');
-
-    return result
-        .map(
-          (e) => WarehouseStock(
-            e['warehouseName'] as String,
-            e['totalQuantity'] as int,
-          ),
-        )
-        .toList();
   }
 
   // Получить продажи по категориям
@@ -510,26 +392,6 @@ class DatabaseHelper {
 
     return List.generate(maps.length, (i) {
       return CustomerOrders(maps[i]['customer_name'], maps[i]['order_count']);
-    });
-  }
-
-  Future<List<WarehouseValue>> getWarehouseValues() async {
-    final db = await database;
-    final List<Map<String, dynamic>> maps = await db.rawQuery('''
-      SELECT 
-        w.name as warehouse_name,
-        SUM(i.quantity * p.price) as total_value
-      FROM Warehouses w
-      JOIN Inventory i ON w.warehouse_id = i.warehouse_id
-      JOIN Products p ON i.product_id = p.product_id
-      GROUP BY w.warehouse_id, w.name
-    ''');
-
-    return List.generate(maps.length, (i) {
-      return WarehouseValue(
-        maps[i]['warehouse_name'],
-        maps[i]['total_value'] ?? 0.0,
-      );
     });
   }
 
@@ -1093,111 +955,6 @@ class DatabaseHelper {
         'Удален товар: ${product.first['name']}',
       );
     }
-    return result;
-  }
-
-  Future<int> insertWarehouse(
-    Map<String, dynamic> warehouse,
-    int userId,
-  ) async {
-    final db = await database;
-    final id = await db.insert('Warehouses', warehouse);
-    await logWarehouseAction(
-      userId,
-      'Создание склада',
-      'Создан склад: ${warehouse['name']}',
-    );
-    return id;
-  }
-
-  Future<int> updateWarehouse(
-    int id,
-    Map<String, dynamic> warehouse,
-    int userId,
-  ) async {
-    final db = await database;
-    final result = await db.update(
-      'Warehouses',
-      warehouse,
-      where: 'warehouse_id = ?',
-      whereArgs: [id],
-    );
-    await logWarehouseAction(
-      userId,
-      'Обновление склада',
-      'Обновлен склад: ${warehouse['name']}',
-    );
-    return result;
-  }
-
-  Future<int> deleteWarehouse(int id, int userId) async {
-    final db = await database;
-    final warehouse = await db.query(
-      'Warehouses',
-      where: 'warehouse_id = ?',
-      whereArgs: [id],
-    );
-    final result = await db.delete(
-      'Warehouses',
-      where: 'warehouse_id = ?',
-      whereArgs: [id],
-    );
-    if (warehouse.isNotEmpty) {
-      await logWarehouseAction(
-        userId,
-        'Удаление склада',
-        'Удален склад: ${warehouse.first['name']}',
-      );
-    }
-    return result;
-  }
-
-  Future<int> insertInventory(
-    Map<String, dynamic> inventory,
-    int userId,
-  ) async {
-    final db = await database;
-    final id = await db.insert('Inventory', inventory);
-    await logInventoryAction(
-      userId,
-      'Создание инвентаря',
-      'Создана запись инвентаря',
-    );
-    return id;
-  }
-
-  Future<int> updateInventory(
-    int id,
-    Map<String, dynamic> inventory,
-    int userId,
-  ) async {
-    final db = await database;
-    final result = await db.update(
-      'Inventory',
-      inventory,
-      where: 'inventory_id = ?',
-      whereArgs: [id],
-    );
-    await logInventoryAction(
-      userId,
-      'Обновление инвентаря',
-      'Обновлена запись инвентаря #$id',
-    );
-    return result;
-  }
-
-  Future<int> deleteInventory(int id, int userId) async {
-    final db = await database;
-    final result = await db.delete(
-      'Inventory',
-      where: 'inventory_id = ?',
-      whereArgs: [id],
-    );
-    await logInventoryAction(
-      userId,
-      'Удаление инвентаря',
-      'Удалена запись инвентаря #$id',
-    );
     return result;
   }
 

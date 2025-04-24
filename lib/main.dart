@@ -645,7 +645,7 @@ class _TableDataScreenState extends State<TableDataScreen> {
 
     'product_id': 'ID товара',
     'price': 'Цена',
-    'unit': 'Единица измерения',
+    'unit': 'Количество',
 
     'warehouse_id': 'ID склада',
     'location': 'Местоположение',

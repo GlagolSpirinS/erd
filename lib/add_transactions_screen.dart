@@ -15,17 +15,17 @@ class _AddTransactionsScreenState extends State<AddTransactionsScreen> {
   final DatabaseHelper dbHelper = DatabaseHelper();
 
   // Поля для хранения данных из формы
-  int? _inventoryId;
-  String _transactionType = '';
+  int? _productId;
+  String _transactionType = 'Приход'; // По умолчанию "Приход"
   int _quantity = 0;
 
-  // Список для выбора инвентаря
-  List<Map<String, dynamic>> _inventory = [];
+  // Список для выбора продуктов
+  List<Map<String, dynamic>> _products = [];
 
   @override
   void initState() {
     super.initState();
-    _loadInventory();
+    _loadProducts();
     _checkPermissions();
   }
 
@@ -44,12 +44,12 @@ class _AddTransactionsScreenState extends State<AddTransactionsScreen> {
     }
   }
 
-  // Загрузка инвентаря из базы данных
-  Future<void> _loadInventory() async {
+  // Загрузка продуктов из базы данных
+  Future<void> _loadProducts() async {
     final db = await dbHelper.database;
-    final inventory = await db.query('Inventory');
+    final products = await db.query('Products');
     setState(() {
-      _inventory = inventory;
+      _products = products;
     });
   }
 
@@ -64,39 +64,45 @@ class _AddTransactionsScreenState extends State<AddTransactionsScreen> {
           child: Column(
             children: [
               DropdownButtonFormField<int>(
-                value: _inventoryId,
-                decoration: InputDecoration(labelText: 'Инвентарь'),
-                items:
-                    _inventory.map((item) {
-                      return DropdownMenuItem<int>(
-                        value: item['inventory_id'],
-                        child: Text('Инвентарь #${item['inventory_id']}'),
-                      );
-                    }).toList(),
+                value: _productId,
+                decoration: InputDecoration(labelText: 'Продукт'),
+                items: _products.map((item) {
+                  return DropdownMenuItem<int>(
+                    value: item['product_id'],
+                    child: Text('${item['name']} (ID: ${item['product_id']})'),
+                  );
+                }).toList(),
                 onChanged: (value) {
                   setState(() {
-                    _inventoryId = value;
+                    _productId = value;
                   });
                 },
                 validator: (value) {
                   if (value == null) {
-                    return 'Выберите инвентарь';
+                    return 'Выберите продукт';
                   }
                   return null;
                 },
               ),
-              TextFormField(
-                decoration: InputDecoration(
-                  labelText: 'Тип транзакции (приход/расход)',
-                ),
+              DropdownButtonFormField<String>(
+                value: _transactionType,
+                decoration: InputDecoration(labelText: 'Тип транзакции'),
+                items: ['Приход', 'Расход'].map((type) {
+                  return DropdownMenuItem<String>(
+                    value: type,
+                    child: Text(type),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    _transactionType = value!;
+                  });
+                },
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return 'Введите тип транзакции';
+                    return 'Выберите тип транзакции';
                   }
                   return null;
-                },
-                onSaved: (value) {
-                  _transactionType = value!;
                 },
               ),
               TextFormField(
@@ -134,9 +140,45 @@ class _AddTransactionsScreenState extends State<AddTransactionsScreen> {
       final db = await dbHelper.database;
 
       try {
+        // Получаем текущее количество продукта
+        final product = await db.query(
+          'Products',
+          where: 'product_id = ?',
+          whereArgs: [_productId],
+        );
+
+        if (product.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Продукт не найден')),
+          );
+          return;
+        }
+
+        int currentQuantity = product.first['quantity'] as int;
+
+        // Обновляем количество продукта в зависимости от типа транзакции
+        int newQuantity = _transactionType == 'Приход'
+            ? currentQuantity + _quantity
+            : currentQuantity - _quantity;
+
+        if (newQuantity < 0) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Недостаточно товара для расхода')),
+          );
+          return;
+        }
+
+        // Обновляем таблицу Products
+        await db.update(
+          'Products',
+          {'quantity': newQuantity},
+          where: 'product_id = ?',
+          whereArgs: [_productId],
+        );
+
         // Вставляем данные в таблицу Transactions
         await db.insert('Transactions', {
-          'inventory_id': _inventoryId,
+          'product_id': _productId,
           'transaction_type': _transactionType,
           'quantity': _quantity,
           // Поле transaction_date заполнится автоматически
@@ -150,9 +192,9 @@ class _AddTransactionsScreenState extends State<AddTransactionsScreen> {
         Navigator.pop(context);
       } catch (e) {
         // Обработка ошибок
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Ошибка: ${e.toString()}')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Ошибка: ${e.toString()}')),
+        );
       }
     }
   }

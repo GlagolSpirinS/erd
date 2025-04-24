@@ -15,7 +15,7 @@ class _AddProductsScreenState extends State<AddProductsScreen> {
   int? _categoryId;
   int? _supplierId;
   double _price = 0.0;
-  String _unit = '';
+  String _quantity = '';
 
   // Списки для выбора категории и поставщика
   List<Map<String, dynamic>> _categories = [];
@@ -125,7 +125,7 @@ class _AddProductsScreenState extends State<AddProductsScreen> {
               ),
               SizedBox(height: 5),
               TextFormField(
-                decoration: InputDecoration(labelText: 'Единица измерения'),
+                decoration: InputDecoration(labelText: 'Количество'),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Введите единицу измерения';
@@ -133,7 +133,7 @@ class _AddProductsScreenState extends State<AddProductsScreen> {
                   return null;
                 },
                 onSaved: (value) {
-                  _unit = value!;
+                  _quantity = value!;
                 },
               ),
               SizedBox(height: 20),
@@ -161,7 +161,7 @@ class _AddProductsScreenState extends State<AddProductsScreen> {
           'category_id': _categoryId,
           'supplier_id': _supplierId,
           'price': _price,
-          'unit': _unit,
+          'quantity': _quantity,
         });
 
         ScaffoldMessenger.of(
