@@ -158,7 +158,7 @@ class DatabaseHelper {
         category_id INTEGER,
         supplier_id INTEGER,
         price NUMERIC(10,2) NOT NULL,
-        quantity INTEGER NOT NULL,
+        quantity INTEGER,
         FOREIGN KEY (category_id) REFERENCES Categories (category_id) ON DELETE SET NULL,
         FOREIGN KEY (supplier_id) REFERENCES Suppliers (supplier_id) ON DELETE SET NULL
       )

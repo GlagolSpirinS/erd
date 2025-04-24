@@ -1,11 +1,9 @@
 import 'dart:io';
 
-import 'package:erd/add_warehouses_screen.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
 import 'add_customers_screen.dart';
-import 'add_inventory_screen.dart';
 import 'add_order_details_screen.dart';
 import 'add_orders_screen.dart';
 import 'add_products_screen.dart';
@@ -1014,37 +1012,6 @@ class _TableDataScreenState extends State<TableDataScreen> {
                     MaterialPageRoute(
                       builder:
                           (context) => AddCustomersScreen(
-                            currentUserRole: widget.userRole,
-                          ),
-                    ),
-                  );
-                  fetchTableData(); // Обновляем данные после возврата
-                },
-              ),
-          if (widget.tableName == "Инвентарь")
-            if (_canCreate)
-              IconButton(
-                icon: Icon(Icons.add),
-                onPressed: () async {
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => AddInventoryScreen(),
-                    ),
-                  );
-                  fetchTableData(); // Обновляем данные после возврата
-                },
-              ),
-          if (widget.tableName == "Склады")
-            if (_canCreate)
-              IconButton(
-                icon: Icon(Icons.add),
-                onPressed: () async {
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder:
-                          (context) => AddWarehousesScreen(
                             currentUserRole: widget.userRole,
                           ),
                     ),
