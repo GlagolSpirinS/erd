@@ -12,7 +12,6 @@ class ChartsWidget extends StatefulWidget {
 }
 
 class _ChartsWidgetState extends State<ChartsWidget> {
-  late Future<List<WarehouseStock>> warehouseStock;
   late Future<List<CategorySales>> categorySales;
   late Future<List<OrderStatus>> orderStatus;
   late Future<List<TransactionType>> transactionTypes;
@@ -20,13 +19,11 @@ class _ChartsWidgetState extends State<ChartsWidget> {
   late Future<List<SupplierDistribution>> supplierDistribution;
   late Future<List<MonthlySales>> monthlySales;
   late Future<List<CustomerOrders>> customerOrders;
-  late Future<List<WarehouseValue>> warehouseValues;
 
   @override
   void initState() {
     super.initState();
     final dbHelper = DatabaseHelper();
-    warehouseStock = dbHelper.getWarehouseStock();
     categorySales = dbHelper.getCategorySales();
     orderStatus = dbHelper.getOrderStatusDistribution();
     transactionTypes = dbHelper.getTransactionTypes();
@@ -34,7 +31,6 @@ class _ChartsWidgetState extends State<ChartsWidget> {
     supplierDistribution = dbHelper.getSupplierDistribution();
     monthlySales = dbHelper.getMonthlySales();
     customerOrders = dbHelper.getCustomerOrders();
-    warehouseValues = dbHelper.getWarehouseValues();
   }
 
   Widget _buildChartCard(BuildContext context, String title, Widget chart) {
@@ -63,34 +59,6 @@ class _ChartsWidgetState extends State<ChartsWidget> {
       child: SingleChildScrollView(
         child: Column(
           children: [
-            FutureBuilder<List<WarehouseStock>>(
-              future: warehouseStock,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return CircularProgressIndicator();
-                }
-                if (snapshot.hasError) {
-                  return Text('Ошибка: ${snapshot.error}');
-                }
-                return _buildChartCard(
-                  context,
-                  'Количество товаров на складах',
-                  SfCartesianChart(
-                    title: ChartTitle(text: 'Количество товаров на складах'),
-                    primaryXAxis: CategoryAxis(),
-                    primaryYAxis: NumericAxis(),
-                    series: <CartesianSeries>[
-                      ColumnSeries<WarehouseStock, String>(
-                        dataSource: snapshot.data!,
-                        xValueMapper: (data, _) => data.warehouseName,
-                        yValueMapper: (data, _) => data.totalQuantity,
-                        color: Theme.of(context).primaryColor,
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
             SizedBox(height: 16),
             FutureBuilder<List<CategorySales>>(
               future: categorySales,
@@ -296,36 +264,6 @@ class _ChartsWidgetState extends State<ChartsWidget> {
               },
             ),
             SizedBox(height: 16),
-            FutureBuilder<List<WarehouseValue>>(
-              future: warehouseValues,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return CircularProgressIndicator();
-                }
-                if (snapshot.hasError) {
-                  return Text('Ошибка: ${snapshot.error}');
-                }
-                return _buildChartCard(
-                  context,
-                  'Стоимость товаров на складах',
-                  SfCartesianChart(
-                    title: ChartTitle(text: 'Стоимость товаров на складах'),
-                    primaryXAxis: CategoryAxis(),
-                    primaryYAxis: NumericAxis(
-                      numberFormat: NumberFormat.currency(locale: 'ru_RU', symbol: '₽'),
-                    ),
-                    series: <CartesianSeries>[
-                      ColumnSeries<WarehouseValue, String>(
-                        dataSource: snapshot.data!,
-                        xValueMapper: (data, _) => data.warehouseName,
-                        yValueMapper: (data, _) => data.totalValue,
-                        color: Colors.red,
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
           ],
         ),
       ),
