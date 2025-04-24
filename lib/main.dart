@@ -179,7 +179,7 @@ class _HomeScreenState extends State<HomeScreen> {
       'Клиенты',
       'Заказы',
       'Детали заказов',
-      'Транзакции',
+      'Накладная',
       'Журнал действий',
     ];
 
@@ -194,7 +194,7 @@ class _HomeScreenState extends State<HomeScreen> {
       'Клиенты': 'Customers',
       'Заказы': 'Orders',
       'Детали заказов': 'Order_Details',
-      'Транзакции': 'Transactions',
+      'Накладная': 'Transactions',
       'Журнал действий': 'Logs',
     };
 
@@ -239,7 +239,7 @@ class _HomeScreenState extends State<HomeScreen> {
         return Icons.shopping_cart;
       case 'Детали заказов':
         return Icons.receipt_long;
-      case 'Транзакции':
+      case 'Накладная':
         return Icons.swap_horiz;
       case 'Журнал действий':
         return Icons.history;
@@ -660,10 +660,10 @@ class _TableDataScreenState extends State<TableDataScreen> {
 
     'order_detail_id': 'ID детали заказа',
 
-    'transaction_id': 'ID транзакции',
+    'transaction_id': 'ID Накладная',
     'inventory_id': 'ID инвентаря',
-    'transaction_type': 'Тип транзакции',
-    'transaction_date': 'Дата транзакции',
+    'transaction_type': 'Тип накладной',
+    'transaction_date': 'Дата накладной',
   };
 
   @override
@@ -772,7 +772,7 @@ class _TableDataScreenState extends State<TableDataScreen> {
         return 'Orders';
       case 'Детали заказов':
         return 'Order_Details';
-      case 'Транзакции':
+      case 'Накладная':
         return 'Transactions';
       case 'Журнал действий':
         return 'Logs';
@@ -803,7 +803,7 @@ class _TableDataScreenState extends State<TableDataScreen> {
         return 'order_id';
       case 'Детали заказов':
         return 'order_detail_id';
-      case 'Транзакции':
+      case 'Накладная':
         return 'transaction_id';
       default:
         throw Exception('Неизвестная таблица: $tableName');
@@ -934,7 +934,7 @@ class _TableDataScreenState extends State<TableDataScreen> {
         return 'Заказ ${row['order_id']}';
       case 'Детали заказов':
         return 'Деталь заказа ${row['order_detail_id']}';
-      case 'Транзакции':
+      case 'Накладная':
         return 'Транзакция ${row['transaction_id']}';
       default:
         return 'Запись ${row['id'] ?? 'N/A'}';
@@ -952,7 +952,7 @@ class _TableDataScreenState extends State<TableDataScreen> {
           // Кнопка удаления записей
           IconButton(icon: Icon(Icons.delete), onPressed: _deleteSelectedItems),
           // Кнопки добавления
-          if (widget.tableName == "Транзакции")
+          if (widget.tableName == "Накладная")
             if (_canCreate)
               IconButton(
                 icon: Icon(Icons.add),

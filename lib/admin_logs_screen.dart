@@ -49,9 +49,9 @@ class _AdminLogsScreenState extends State<AdminLogsScreen> {
     'Создание детали заказа',
     'Обновление детали заказа',
     'Удаление детали заказа',
-    'Создание транзакции',
-    'Обновление транзакции',
-    'Удаление транзакции',
+    'Создание Накладная',
+    'Обновление Накладная',
+    'Удаление Накладная',
   ];
 
   @override
@@ -237,7 +237,7 @@ class _AdminLogsScreenState extends State<AdminLogsScreen> {
       case 'Создание клиента':
       case 'Создание заказа':
       case 'Создание детали заказа':
-      case 'Создание транзакции':
+      case 'Создание Накладная':
         return Icons.add_circle;
       case 'Обновление роли':
       case 'Обновление поставщика':
@@ -248,7 +248,7 @@ class _AdminLogsScreenState extends State<AdminLogsScreen> {
       case 'Обновление клиента':
       case 'Обновление заказа':
       case 'Обновление детали заказа':
-      case 'Обновление транзакции':
+      case 'Обновление Накладная':
         return Icons.edit;
       case 'Удаление роли':
       case 'Удаление поставщика':
@@ -259,7 +259,7 @@ class _AdminLogsScreenState extends State<AdminLogsScreen> {
       case 'Удаление клиента':
       case 'Удаление заказа':
       case 'Удаление детали заказа':
-      case 'Удаление транзакции':
+      case 'Удаление Накладная':
         return Icons.delete;
       default:
         return Icons.history;

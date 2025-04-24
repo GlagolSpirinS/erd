@@ -1109,7 +1109,7 @@ class DatabaseHelper {
     final id = await db.insert('Transactions', transaction);
     await logTransactionAction(
       userId,
-      'Создание транзакции',
+      'Создание Накладная',
       'Создана транзакция #$id',
     );
     return id;
@@ -1129,7 +1129,7 @@ class DatabaseHelper {
     );
     await logTransactionAction(
       userId,
-      'Обновление транзакции',
+      'Обновление Накладная',
       'Обновлена транзакция #$id',
     );
     return result;
@@ -1144,7 +1144,7 @@ class DatabaseHelper {
     );
     await logTransactionAction(
       userId,
-      'Удаление транзакции',
+      'Удаление Накладная',
       'Удалена транзакция #$id',
     );
     return result;

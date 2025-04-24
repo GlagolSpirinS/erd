@@ -127,9 +127,9 @@ class _ChartsWidgetState extends State<ChartsWidget> {
                 }
                 return _buildChartCard(
                   context,
-                  'Транзакции по типам',
+                  'Накладная по типам',
                   SfCartesianChart(
-                    title: ChartTitle(text: 'Транзакции по типам'),
+                    title: ChartTitle(text: 'Накладная по типам'),
                     primaryXAxis: CategoryAxis(),
                     primaryYAxis: NumericAxis(),
                     series: <CartesianSeries>[

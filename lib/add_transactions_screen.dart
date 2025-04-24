@@ -84,9 +84,10 @@ class _AddTransactionsScreenState extends State<AddTransactionsScreen> {
                   return null;
                 },
               ),
+              SizedBox(height: 10),
               DropdownButtonFormField<String>(
                 value: _transactionType,
-                decoration: InputDecoration(labelText: 'Тип транзакции'),
+                decoration: InputDecoration(labelText: 'Тип Накладная'),
                 items: ['Приход', 'Расход'].map((type) {
                   return DropdownMenuItem<String>(
                     value: type,
@@ -100,11 +101,12 @@ class _AddTransactionsScreenState extends State<AddTransactionsScreen> {
                 },
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return 'Выберите тип транзакции';
+                    return 'Выберите тип накладной';
                   }
                   return null;
                 },
               ),
+              SizedBox(height: 5),
               TextFormField(
                 decoration: InputDecoration(labelText: 'Количество'),
                 keyboardType: TextInputType.number,
@@ -156,7 +158,7 @@ class _AddTransactionsScreenState extends State<AddTransactionsScreen> {
 
         int currentQuantity = product.first['quantity'] as int;
 
-        // Обновляем количество продукта в зависимости от типа транзакции
+        // Обновляем количество продукта в зависимости от типа Накладная
         int newQuantity = _transactionType == 'Приход'
             ? currentQuantity + _quantity
             : currentQuantity - _quantity;
