@@ -15,7 +15,7 @@ class _AddProductsScreenState extends State<AddProductsScreen> {
   int? _categoryId;
   int? _supplierId;
   double _price = 0.0;
-  String _quantity = '';
+  String _quantity = '0';
 
   // Списки для выбора категории и поставщика
   List<Map<String, dynamic>> _categories = [];
@@ -124,18 +124,18 @@ class _AddProductsScreenState extends State<AddProductsScreen> {
                 },
               ),
               SizedBox(height: 5),
-              TextFormField(
-                decoration: InputDecoration(labelText: 'Количество'),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Введите единицу измерения';
-                  }
-                  return null;
-                },
-                onSaved: (value) {
-                  _quantity = value!;
-                },
-              ),
+              // TextFormField(
+              //   decoration: InputDecoration(labelText: 'Количество'),
+              //   validator: (value) {
+              //     if (value == null || value.isEmpty) {
+              //       return 'Введите единицу измерения';
+              //     }
+              //     return null;
+              //   },
+              //   onSaved: (value) {
+              //     _quantity = value!;
+              //   },
+              // ),
               SizedBox(height: 20),
               ElevatedButton(
                 onPressed: _submitForm,
