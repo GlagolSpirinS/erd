@@ -14,13 +14,14 @@ class _AddTransactionsScreenState extends State<AddTransactionsScreen> {
   final _formKey = GlobalKey<FormState>();
   final DatabaseHelper dbHelper = DatabaseHelper();
 
-  // Поля для хранения данных из формы
-  int? _productId;
-  String _transactionType = 'Приход'; // По умолчанию "Приход"
-  int _quantity = 0;
+  // Список для хранения выбранных товаров
+  List<Map<String, dynamic>> _selectedProducts = [];
 
   // Список для выбора продуктов
   List<Map<String, dynamic>> _products = [];
+
+  // Тип транзакции (по умолчанию "Приход")
+  String _transactionType = 'Приход';
 
   @override
   void initState() {
@@ -53,6 +54,44 @@ class _AddTransactionsScreenState extends State<AddTransactionsScreen> {
     });
   }
 
+  // Добавление товара в список выбранных
+  void _addProductToSelected(int productId) {
+    final product = _products.firstWhere((p) => p['product_id'] == productId);
+
+    // Проверяем, нет ли уже такого товара в списке
+    if (_selectedProducts.any((p) => p['product_id'] == productId)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Товар уже добавлен')),
+      );
+      return;
+    }
+
+    setState(() {
+      _selectedProducts.add({
+        'product_id': product['product_id'],
+        'name': product['name'],
+        'quantity': 0, // Начальное количество
+      });
+    });
+  }
+
+  // Удаление товара из списка выбранных
+  void _removeProductFromSelected(int productId) {
+    setState(() {
+      _selectedProducts.removeWhere((p) => p['product_id'] == productId);
+    });
+  }
+
+  // Обновление количества товара
+  void _updateProductQuantity(int productId, String quantityText) {
+    final newQuantity = int.tryParse(quantityText) ?? 0;
+
+    setState(() {
+      final product = _selectedProducts.firstWhere((p) => p['product_id'] == productId);
+      product['quantity'] = newQuantity;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -62,71 +101,106 @@ class _AddTransactionsScreenState extends State<AddTransactionsScreen> {
         child: Form(
           key: _formKey,
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              DropdownButtonFormField<int>(
-                value: _productId,
-                decoration: InputDecoration(labelText: 'Продукт'),
-                items: _products.map((item) {
-                  return DropdownMenuItem<int>(
-                    value: item['product_id'],
-                    child: Text('${item['name']} (ID: ${item['product_id']})'),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  setState(() {
-                    _productId = value;
-                  });
-                },
-                validator: (value) {
-                  if (value == null) {
-                    return 'Выберите продукт';
-                  }
-                  return null;
-                },
+              Row(
+                children: [
+                  Expanded(
+                    child: DropdownButtonFormField<int>(
+                      decoration: InputDecoration(labelText: 'Выберите продукт'),
+                      items: _products.map((item) {
+                        return DropdownMenuItem<int>(
+                          value: item['product_id'],
+                          child: Text('${item['name']} (ID: ${item['product_id']})'),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        if (value != null) {
+                          _addProductToSelected(value);
+                        }
+                      },
+                      validator: (value) {
+                        if (value == null) {
+                          return 'Выберите продукт';
+                        }
+                        return null;
+                      },
+                    ),
+                  ),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: DropdownButtonFormField<String>(
+                      decoration: InputDecoration(labelText: 'Тип транзакции'),
+                      value: _transactionType,
+                      items: ['Приход', 'Расход'].map((type) {
+                        return DropdownMenuItem<String>(
+                          value: type,
+                          child: Text(type),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          _transactionType = value!;
+                        });
+                      },
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Выберите тип транзакции';
+                        }
+                        return null;
+                      },
+                    ),
+                  ),
+                ],
               ),
-              SizedBox(height: 10),
-              DropdownButtonFormField<String>(
-                value: _transactionType,
-                decoration: InputDecoration(labelText: 'Тип Накладная'),
-                items: ['Приход', 'Расход'].map((type) {
-                  return DropdownMenuItem<String>(
-                    value: type,
-                    child: Text(type),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  setState(() {
-                    _transactionType = value!;
-                  });
-                },
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Выберите тип накладной';
-                  }
-                  return null;
-                },
+              // SizedBox(height: 16),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: _selectedProducts.length,
+                  itemBuilder: (context, index) {
+                    final product = _selectedProducts[index];
+                    return ListTile(
+                      // contentPadding: EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0), // Добавляем внешний отступ для всего ListTile
+                      title: Text(
+                        'Товар: ${product['name']}',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                      subtitle: Padding(
+                        padding: EdgeInsets.only(top: 8.0), // Добавляем отступ сверху для subtitle
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: TextFormField(
+                                initialValue: product['quantity'].toString(),
+                                keyboardType: TextInputType.number,
+                                decoration: InputDecoration(
+                                  labelText: 'Количество',
+                                  labelStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.normal),
+                                  contentPadding: EdgeInsets.symmetric(vertical: 12.0, horizontal: 8.0),
+                                  floatingLabelBehavior: FloatingLabelBehavior.always,
+                                ),
+                                onChanged: (value) {
+                                  _updateProductQuantity(product['product_id'], value);
+                                },
+                              ),
+                            ),
+                            IconButton(
+                              icon: Icon(Icons.delete),
+                              onPressed: () {
+                                _removeProductFromSelected(product['product_id']);
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
               ),
-              SizedBox(height: 5),
-              TextFormField(
-                decoration: InputDecoration(labelText: 'Количество'),
-                keyboardType: TextInputType.number,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Введите количество';
-                  }
-                  if (int.tryParse(value) == null) {
-                    return 'Введите корректное число';
-                  }
-                  return null;
-                },
-                onSaved: (value) {
-                  _quantity = int.parse(value!);
-                },
-              ),
-              SizedBox(height: 20),
+              SizedBox(height: 16),
               ElevatedButton(
                 onPressed: _submitForm,
-                child: Text('Добавить транзакцию'),
+                child: Text('Добавить транзакции'),
               ),
             ],
           ),
@@ -136,38 +210,51 @@ class _AddTransactionsScreenState extends State<AddTransactionsScreen> {
   }
 
   void _submitForm() async {
-    if (_formKey.currentState!.validate()) {
-      _formKey.currentState!.save();
+    if (_selectedProducts.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Добавьте хотя бы один товар')),
+      );
+      return;
+    }
 
-      final db = await dbHelper.database;
+    final db = await dbHelper.database;
 
-      try {
-        // Получаем текущее количество продукта
-        final product = await db.query(
-          'Products',
-          where: 'product_id = ?',
-          whereArgs: [_productId],
-        );
+    try {
+      for (var product in _selectedProducts) {
+        final productId = product['product_id'];
+        final quantity = product['quantity'];
 
-        if (product.isEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Продукт не найден')),
-          );
-          return;
+        if (quantity <= 0) {
+          continue; // Пропускаем товары с нулевым количеством
         }
 
-        int currentQuantity = product.first['quantity'] as int;
+        // Получаем текущее количество продукта
+        final productData = await db.query(
+          'Products',
+          where: 'product_id = ?',
+          whereArgs: [productId],
+        );
 
-        // Обновляем количество продукта в зависимости от типа Накладная
-        int newQuantity = _transactionType == 'Приход'
-            ? currentQuantity + _quantity
-            : currentQuantity - _quantity;
-
-        if (newQuantity < 0) {
+        if (productData.isEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Недостаточно товара для расхода')),
+            SnackBar(content: Text('Продукт с ID $productId не найден')),
           );
-          return;
+          continue;
+        }
+
+        int currentQuantity = productData.first['quantity'] as int;
+        num newQuantity;
+
+        if (_transactionType == 'Приход') {
+          newQuantity = currentQuantity + quantity;
+        } else {
+          newQuantity = currentQuantity - quantity;
+          if (newQuantity < 0) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Недостаточно товара для списания')),
+            );
+            continue;
+          }
         }
 
         // Обновляем таблицу Products
@@ -175,29 +262,28 @@ class _AddTransactionsScreenState extends State<AddTransactionsScreen> {
           'Products',
           {'quantity': newQuantity},
           where: 'product_id = ?',
-          whereArgs: [_productId],
+          whereArgs: [productId],
         );
 
         // Вставляем данные в таблицу Transactions
         await db.insert('Transactions', {
-          'product_id': _productId,
+          'product_id': productId,
           'transaction_type': _transactionType,
-          'quantity': _quantity,
-          // Поле transaction_date заполнится автоматически
+          'quantity': quantity,
         });
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Транзакция успешно добавлена!')),
-        );
-
-        // Возвращаемся к списку заказов
-        Navigator.pop(context);
-      } catch (e) {
-        // Обработка ошибок
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Ошибка: ${e.toString()}')),
-        );
       }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Транзакции успешно добавлены!')),
+      );
+
+      // Возвращаемся к списку заказов
+      Navigator.pop(context);
+    } catch (e) {
+      // Обработка ошибок
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Ошибка: ${e.toString()}')),
+      );
     }
   }
 }
