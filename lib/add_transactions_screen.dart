@@ -95,13 +95,13 @@ class _AddTransactionsScreenState extends State<AddTransactionsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Добавить транзакцию')),
+      appBar: AppBar(title: Text('Добавить накладную')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Form(
           key: _formKey,
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Row(
                 children: [
@@ -111,7 +111,7 @@ class _AddTransactionsScreenState extends State<AddTransactionsScreen> {
                       items: _products.map((item) {
                         return DropdownMenuItem<int>(
                           value: item['product_id'],
-                          child: Text('${item['name']} (ID: ${item['product_id']})'),
+                          child: Text('${item['name']}'),
                         );
                       }).toList(),
                       onChanged: (value) {
@@ -200,7 +200,7 @@ class _AddTransactionsScreenState extends State<AddTransactionsScreen> {
               SizedBox(height: 16),
               ElevatedButton(
                 onPressed: _submitForm,
-                child: Text('Добавить транзакции'),
+                child: Text('Добавить накладную'),
               ),
             ],
           ),
