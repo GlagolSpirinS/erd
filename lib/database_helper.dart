@@ -133,6 +133,19 @@ class DatabaseHelper {
     ''');
 
     await db.execute('''
+      CREATE TABLE Transactions (
+        transaction_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        product_id INTEGER NOT NULL,
+        transaction_type TEXT NOT NULL,
+        quantity INTEGER NOT NULL,
+        transaction_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+        user_id INTEGER NOT NULL,
+        FOREIGN KEY (product_id) REFERENCES Products (product_id),
+        FOREIGN KEY (user_id) REFERENCES Users (user_id) ON DELETE CASCADE
+      )
+    ''');
+
+    await db.execute('''
       CREATE TABLE Suppliers (
         supplier_id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
@@ -200,14 +213,16 @@ class DatabaseHelper {
     ''');
 
     await db.execute('''
-      CREATE TABLE Transactions (
-        transaction_id INTEGER PRIMARY KEY AUTOINCREMENT,
-        product_id INTEGER NOT NULL,
-        transaction_type TEXT NOT NULL,
-        quantity INTEGER NOT NULL,
-        transaction_date DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (product_id) REFERENCES Products (product_id)
-      );
+      CREATE TABLE Temp_Transactions (
+          transaction_id INTEGER PRIMARY KEY AUTOINCREMENT,
+          product_id INTEGER NOT NULL,
+          transaction_type TEXT NOT NULL,
+          quantity INTEGER NOT NULL,
+          transaction_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+          user_id INTEGER NOT NULL,
+          FOREIGN KEY (product_id) REFERENCES Products (product_id),
+          FOREIGN KEY (user_id) REFERENCES Users (user_id) ON DELETE CASCADE
+      )
     ''');
 
     // Вставка начальных данных

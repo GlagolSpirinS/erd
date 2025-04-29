@@ -102,7 +102,7 @@ class _AddRoleScreenState extends State<AddRoleScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          table,
+                          _tableNamesRu[table] ?? table,
                           style: TextStyle(fontWeight: FontWeight.bold),
                         ),
                         Row(
@@ -232,3 +232,18 @@ class _AddRoleScreenState extends State<AddRoleScreen> {
     return 'read_only';
   }
 }
+
+  final Map<String, String> _tableNamesRu = {
+    'Users': 'Пользователи',
+    'Roles': 'Роли',
+    'Suppliers': 'Поставщики',
+    'Categories': 'Категории',
+    'Products': 'Продукты',
+    'Warehouses': 'Склады',
+    'Inventory': 'Инвентарь',
+    'Customers': 'Клиенты',
+    'Orders': 'Заказы',
+    'Order_Details': 'Детали заказов',
+    'Transactions': 'Транзакции',
+    'Logs': 'Логи',
+  };

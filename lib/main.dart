@@ -149,8 +149,9 @@ class MyApp extends StatelessWidget {
 
 class HomeScreen extends StatefulWidget {
   final int userRole;
+  final int UserId;
 
-  HomeScreen({required this.userRole});
+  HomeScreen({required this.userRole, required this.UserId});
 
   @override
   _HomeScreenState createState() => _HomeScreenState();
@@ -381,6 +382,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                               : TableDataScreen(
                                                 tableName: table,
                                                 userRole: widget.userRole,
+                                                UserId: widget.UserId,
                                               ),
                                 ),
                               );
@@ -603,8 +605,9 @@ class ChartData {
 class TableDataScreen extends StatefulWidget {
   final String tableName;
   final int userRole;
+  final int UserId;
 
-  TableDataScreen({required this.tableName, required this.userRole});
+  TableDataScreen({required this.tableName, required this.userRole, required this.UserId});
 
   @override
   _TableDataScreenState createState() => _TableDataScreenState();
@@ -962,7 +965,7 @@ class _TableDataScreenState extends State<TableDataScreen> {
                     MaterialPageRoute(
                       builder:
                           (context) => AddTransactionsScreen(
-                            currentUserRole: widget.userRole,
+                            currentUserRole: widget.userRole, currentUserId: widget.UserId,
                           ),
                     ),
                   );
