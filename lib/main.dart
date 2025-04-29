@@ -946,7 +946,7 @@ class _TableDataScreenState extends State<TableDataScreen> {
               row['category_name'] ?? 'Категория ${row['category_id']}';
           final supplierName =
               row['supplier_name'] ?? 'Поставщик ${row['supplier_id']}';
-          return '$categoryName - $supplierName';
+          return row['name']?.toString() ?? 'Товар ${row['product_id']}';
         }
         return row['name']?.toString() ?? 'Товар ${row['product_id']}';
       case 'Клиенты':
@@ -966,7 +966,7 @@ class _TableDataScreenState extends State<TableDataScreen> {
       case 'Детали заказов':
         return 'Деталь заказа ${row['order_detail_id']}';
       case 'Накладная':
-        return 'Транзакция ${row['transaction_id']}';
+        return 'Накладная ${row['transaction_id']}';
       default:
         return 'Запись ${row['id'] ?? 'N/A'}';
     }
