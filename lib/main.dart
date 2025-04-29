@@ -607,7 +607,11 @@ class TableDataScreen extends StatefulWidget {
   final int userRole;
   final int UserId;
 
-  TableDataScreen({required this.tableName, required this.userRole, required this.UserId});
+  TableDataScreen({
+    required this.tableName,
+    required this.userRole,
+    required this.UserId,
+  });
 
   @override
   _TableDataScreenState createState() => _TableDataScreenState();
@@ -732,12 +736,28 @@ class _TableDataScreenState extends State<TableDataScreen> {
   Future<void> fetchTableData() async {
     final db = await dbHelper.database;
     final String englishTableName = _getEnglishTableName(widget.tableName);
-    final data = await db.query(englishTableName);
-    setState(() {
-      tableData = data;
-      selectedItems = {};
-      filterAndSortData();
-    });
+
+    if (englishTableName == 'Products') {
+      final data = await db.rawQuery('''
+      SELECT p.*, c.name as category_name, s.name as supplier_name 
+      FROM Products p
+      LEFT JOIN Categories c ON p.category_id = c.category_id
+      LEFT JOIN Suppliers s ON p.supplier_id = s.supplier_id
+    ''');
+
+      setState(() {
+        tableData = data;
+        selectedItems = {};
+        filterAndSortData();
+      });
+    } else {
+      final data = await db.query(englishTableName);
+      setState(() {
+        tableData = data;
+        selectedItems = {};
+        filterAndSortData();
+      });
+    }
   }
 
   void _handleSort(String column) {
@@ -920,6 +940,14 @@ class _TableDataScreenState extends State<TableDataScreen> {
       case 'Пользователи':
         return row['name']?.toString() ?? 'Пользователь ${row['user_id']}';
       case 'Товары':
+        // Добавьте получение названий для category_id и supplier_id
+        if (row.containsKey('category_id') && row.containsKey('supplier_id')) {
+          final categoryName =
+              row['category_name'] ?? 'Категория ${row['category_id']}';
+          final supplierName =
+              row['supplier_name'] ?? 'Поставщик ${row['supplier_id']}';
+          return '$categoryName - $supplierName';
+        }
         return row['name']?.toString() ?? 'Товар ${row['product_id']}';
       case 'Клиенты':
         return row['name']?.toString() ?? 'Клиент ${row['customer_id']}';
@@ -965,7 +993,8 @@ class _TableDataScreenState extends State<TableDataScreen> {
                     MaterialPageRoute(
                       builder:
                           (context) => AddTransactionsScreen(
-                            currentUserRole: widget.userRole, currentUserId: widget.UserId,
+                            currentUserRole: widget.userRole,
+                            currentUserId: widget.UserId,
                           ),
                     ),
                   );
@@ -1317,6 +1346,12 @@ class _TableDataScreenState extends State<TableDataScreen> {
   ) async {
     final formKey = GlobalKey<FormState>();
     final editedData = Map<String, dynamic>.from(row);
+
+    List<Map<String, dynamic>> categories = [];
+    List<Map<String, dynamic>> suppliers = [];
+    int? selectedCategoryId;
+    int? selectedSupplierId;
+
     List<Map<String, dynamic>> roles = [];
     int? selectedRoleId;
 
@@ -1325,6 +1360,14 @@ class _TableDataScreenState extends State<TableDataScreen> {
       final db = await dbHelper.database;
       roles = await db.query('Roles');
       selectedRoleId = row['role_id'];
+    }
+
+    if (widget.tableName == 'Товары') {
+      final db = await dbHelper.database;
+      categories = await db.query('Categories');
+      suppliers = await db.query('Suppliers');
+      selectedCategoryId = row['category_id'];
+      selectedSupplierId = row['supplier_id'];
     }
 
     return showDialog(
@@ -1381,6 +1424,62 @@ class _TableDataScreenState extends State<TableDataScreen> {
                                   return 'Выберите роль';
                                 }
                                 return null;
+                              },
+                            ),
+                          );
+                        }
+
+                        // Специальная обработка для категории
+                        if (widget.tableName == 'Товары' &&
+                            entry.key == 'category_id') {
+                          return Padding(
+                            padding: EdgeInsets.symmetric(vertical: 8),
+                            child: DropdownButtonFormField<int>(
+                              value: selectedCategoryId,
+                              decoration: InputDecoration(
+                                labelText: 'Категория',
+                                border: OutlineInputBorder(),
+                              ),
+                              items:
+                                  categories.map((category) {
+                                    return DropdownMenuItem<int>(
+                                      value: category['category_id'],
+                                      child: Text(category['name'] ?? ''),
+                                    );
+                                  }).toList(),
+                              onChanged: (value) {
+                                setState(() {
+                                  selectedCategoryId = value;
+                                  editedData['category_id'] = value;
+                                });
+                              },
+                            ),
+                          );
+                        }
+
+                        // Специальная обработка для поставщика
+                        if (widget.tableName == 'Товары' &&
+                            entry.key == 'supplier_id') {
+                          return Padding(
+                            padding: EdgeInsets.symmetric(vertical: 8),
+                            child: DropdownButtonFormField<int>(
+                              value: selectedSupplierId,
+                              decoration: InputDecoration(
+                                labelText: 'Поставщик',
+                                border: OutlineInputBorder(),
+                              ),
+                              items:
+                                  suppliers.map((supplier) {
+                                    return DropdownMenuItem<int>(
+                                      value: supplier['supplier_id'],
+                                      child: Text(supplier['name'] ?? ''),
+                                    );
+                                  }).toList(),
+                              onChanged: (value) {
+                                setState(() {
+                                  selectedSupplierId = value;
+                                  editedData['supplier_id'] = value;
+                                });
                               },
                             ),
                           );

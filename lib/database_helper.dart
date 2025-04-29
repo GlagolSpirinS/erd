@@ -542,6 +542,19 @@ class DatabaseHelper {
     );
   }
 
+  // В классе DatabaseHelper добавьте методы:
+  Future<Object?> getCategoryName(int categoryId) async {
+    final db = await database;
+    final result = await db.query('Categories', where: 'category_id = ?', whereArgs: [categoryId]);
+    return result.isNotEmpty ? result.first['name'] : null;
+  }
+
+  Future<Object?> getSupplierName(int supplierId) async {
+    final db = await database;
+    final result = await db.query('Suppliers', where: 'supplier_id = ?', whereArgs: [supplierId]);
+    return result.isNotEmpty ? result.first['name'] : null;
+  }
+
   Future<List<Map<String, dynamic>>> getLogs() async {
     final db = await database;
     return await db.rawQuery('''
