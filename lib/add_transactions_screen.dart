@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'database_helper.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // Добавлено для Firebase
+import 'package:firebase_core/firebase_core.dart';   // Добавлено для инициализации Firebase
 
 class AddTransactionsScreen extends StatefulWidget {
   final int currentUserRole;
@@ -154,20 +156,18 @@ class _AddTransactionsScreenState extends State<AddTransactionsScreen> {
                   ),
                 ],
               ),
-              // SizedBox(height: 16),
               Expanded(
                 child: ListView.builder(
                   itemCount: _selectedProducts.length,
                   itemBuilder: (context, index) {
                     final product = _selectedProducts[index];
                     return ListTile(
-                      // contentPadding: EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0), // Добавляем внешний отступ для всего ListTile
                       title: Text(
                         'Товар: ${product['name']}',
                         style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                       ),
                       subtitle: Padding(
-                        padding: EdgeInsets.only(top: 8.0), // Добавляем отступ сверху для subtitle
+                        padding: EdgeInsets.only(top: 8.0),
                         child: Row(
                           children: [
                             Expanded(
@@ -209,83 +209,96 @@ class _AddTransactionsScreenState extends State<AddTransactionsScreen> {
       ),
     );
   }
-  
+
   void _submitForm() async {
-  if (_selectedProducts.isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Добавьте хотя бы один товар')),
-    );
-    return;
-  }
-
-  final db = await dbHelper.database;
-
-  try {
-    for (var product in _selectedProducts) {
-      final productId = product['product_id'];
-      final quantity = product['quantity'];
-
-      if (quantity <= 0) {
-        continue; // Пропускаем товары с нулевым количеством
-      }
-
-      // Получаем текущее количество продукта
-      final productData = await db.query(
-        'Products',
-        where: 'product_id = ?',
-        whereArgs: [productId],
+    if (_selectedProducts.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Добавьте хотя бы один товар')),
       );
+      return;
+    }
 
-      if (productData.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Продукт с ID $productId не найден')),
+    final db = await dbHelper.database;
+
+    try {
+      for (var product in _selectedProducts) {
+        final productId = product['product_id'];
+        final quantity = product['quantity'];
+
+        if (quantity <= 0) {
+          continue; // Пропускаем товары с нулевым количеством
+        }
+
+        // Получаем текущее количество продукта
+        final productData = await db.query(
+          'Products',
+          where: 'product_id = ?',
+          whereArgs: [productId],
         );
-        continue;
-      }
 
-      int currentQuantity = productData.first['quantity'] as int;
-      num newQuantity;
-
-      if (_transactionType == 'Приход') {
-        newQuantity = currentQuantity + quantity;
-      } else {
-        newQuantity = currentQuantity - quantity;
-        if (newQuantity < 0) {
+        if (productData.isEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Недостаточно товара для списания')),
+            SnackBar(content: Text('Продукт с ID $productId не найден')),
           );
           continue;
         }
+
+        int currentQuantity = productData.first['quantity'] as int;
+        num newQuantity;
+
+        if (_transactionType == 'Приход') {
+          newQuantity = currentQuantity + quantity;
+        } else {
+          newQuantity = currentQuantity - quantity;
+          if (newQuantity < 0) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Недостаточно товара для списания')),
+            );
+            continue;
+          }
+        }
+
+        // Обновляем таблицу Products
+        await db.update(
+          'Products',
+          {'quantity': newQuantity},
+          where: 'product_id = ?',
+          whereArgs: [productId],
+        );
+
+        // Вставляем данные в таблицу Transactions
+        await db.insert('Transactions', {
+          'product_id': productId,
+          'transaction_type': _transactionType,
+          'quantity': quantity,
+          'user_id': widget.currentUserId,
+        });
+
+        // Отправка данных в Firebase Firestore
+        await FirebaseFirestore.instance.collection('transactions').add({
+          'product_id': productId,
+          'transaction_type': _transactionType,
+          'quantity': quantity,
+          'user_id': widget.currentUserId,
+          'timestamp': FieldValue.serverTimestamp(),
+        });
+
+        // Обновляем или создаём запись о продукте в Firebase (опционально)
+        await FirebaseFirestore.instance.collection('products').doc(productId.toString()).set({
+          'quantity': newQuantity,
+          'last_updated': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
       }
 
-      // Обновляем таблицу Products
-      await db.update(
-        'Products',
-        {'quantity': newQuantity},
-        where: 'product_id = ?',
-        whereArgs: [productId],
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Транзакции успешно добавлены!')),
       );
 
-      // Вставляем данные в таблицу Transactions
-      await db.insert('Transactions', {
-        'product_id': productId,
-        'transaction_type': _transactionType,
-        'quantity': quantity,
-        'user_id': widget.currentUserId, // Include the user_id here
-      });
+      Navigator.pop(context);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Ошибка: ${e.toString()}')),
+      );
     }
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Транзакции успешно добавлены!')),
-    );
-
-    // Возвращаемся к списку заказов
-    Navigator.pop(context);
-  } catch (e) {
-    // Обработка ошибок
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Ошибка: ${e.toString()}')),
-    );
   }
-}
 }

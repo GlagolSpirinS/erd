@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'database_helper.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // Добавлено для Firebase
+import 'package:firebase_core/firebase_core.dart'; // Добавлено для инициализации Firebase
 
 class AddCustomersScreen extends StatefulWidget {
   final int currentUserRole;
@@ -127,7 +129,7 @@ class _AddCustomersScreenState extends State<AddCustomersScreen> {
       final db = await dbHelper.database;
 
       try {
-        // Вставляем данные в таблицу Customers
+        // Локальное сохранение в SQLite
         await db.insert('Customers', {
           'name': _name,
           'contact_name': _contactName,
@@ -136,17 +138,27 @@ class _AddCustomersScreenState extends State<AddCustomersScreen> {
           'address': _address,
         });
 
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Клиент успешно добавлен!')));
+        // Отправка данных в Firebase Firestore
+        await FirebaseFirestore.instance.collection('customers').add({
+          'name': _name,
+          'contact_name': _contactName,
+          'phone': _phone,
+          'email': _email,
+          'address': _address,
+          'created_at': FieldValue.serverTimestamp(),
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Клиент успешно добавлен!')),
+        );
 
         // Возвращаемся к списку заказов
         Navigator.pop(context);
       } catch (e) {
         // Обработка ошибок
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Ошибка: ${e.toString()}')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Ошибка: ${e.toString()}')),
+        );
       }
     }
   }

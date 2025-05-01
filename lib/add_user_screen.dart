@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'database_helper.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // Добавлено для Firebase
+import 'package:firebase_core/firebase_core.dart';   // Добавлено для инициализации Firebase
 
 class AddUserScreen extends StatefulWidget {
   final int currentUserRole;
@@ -35,8 +37,7 @@ class _AddUserScreenState extends State<AddUserScreen> {
     setState(() {
       _roles = roles;
       if (_roles.isNotEmpty) {
-        _roleId =
-            _roles[0]['role_id']; // Устанавливаем первую роль по умолчанию
+        _roleId = _roles[0]['role_id']; // Устанавливаем первую роль по умолчанию
       }
     });
   }
@@ -54,8 +55,7 @@ class _AddUserScreenState extends State<AddUserScreen> {
               TextFormField(
                 decoration: InputDecoration(
                   labelText: 'Логин',
-                  helperText:
-                      'Это имя будет использоваться для входа в систему',
+                  helperText: 'Это имя будет использоваться для входа в систему',
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
@@ -98,23 +98,22 @@ class _AddUserScreenState extends State<AddUserScreen> {
               _roles.isEmpty
                   ? CircularProgressIndicator()
                   : DropdownButtonFormField<int>(
-                    value: _roleId,
-                    decoration: InputDecoration(labelText: 'Роль'),
-                    items:
-                        _roles.map((role) {
-                          return DropdownMenuItem<int>(
-                            value: role['role_id'],
-                            child: Text(
-                              role['role_name'] ?? 'Неизвестная роль',
-                            ),
-                          );
-                        }).toList(),
-                    onChanged: (value) {
-                      setState(() {
-                        _roleId = value;
-                      });
-                    },
-                  ),
+                      value: _roleId,
+                      decoration: InputDecoration(labelText: 'Роль'),
+                      items: _roles.map((role) {
+                        return DropdownMenuItem<int>(
+                          value: role['role_id'],
+                          child: Text(
+                            role['role_name'] ?? 'Неизвестная роль',
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          _roleId = value;
+                        });
+                      },
+                    ),
               SizedBox(height: 20),
               ElevatedButton(
                 onPressed: _submitForm,
@@ -158,6 +157,20 @@ class _AddUserScreenState extends State<AddUserScreen> {
 
         // Логируем создание пользователя
         await dbHelper.logUserCreation(userId, '$_name $_surname');
+
+        // Отправляем данные в Firebase
+        if (_roleId != null) {
+          await FirebaseFirestore.instance.collection('users').add({
+            'name': _name,
+            'surname': _surname,
+            'role_id': _roleId,
+            'created_at': FieldValue.serverTimestamp(),
+          });
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Ошибка: Роль пользователя не указана')),
+          );
+        }
 
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Пользователь успешно добавлен')),

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:sqflite/sqflite.dart';
 import 'database_helper.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // Добавлено для Firebase
+import 'package:firebase_core/firebase_core.dart';   // Добавлено для инициализации Firebase
 
 class AddRoleScreen extends StatefulWidget {
   final int currentUserRole;
@@ -36,6 +38,21 @@ class _AddRoleScreenState extends State<AddRoleScreen> {
 
   // Map для хранения разрешений для каждой таблицы
   Map<String, Map<String, bool>> _permissions = {};
+
+  final Map<String, String> _tableNamesRu = {
+    'Users': 'Пользователи',
+    'Roles': 'Роли',
+    'Suppliers': 'Поставщики',
+    'Categories': 'Категории',
+    'Products': 'Продукты',
+    'Warehouses': 'Склады',
+    'Inventory': 'Инвентарь',
+    'Customers': 'Клиенты',
+    'Orders': 'Заказы',
+    'Order_Details': 'Детали заказов',
+    'Transactions': 'Транзакции',
+    'Logs': 'Логи',
+  };
 
   @override
   void initState() {
@@ -159,7 +176,6 @@ class _AddRoleScreenState extends State<AddRoleScreen> {
                               ],
                             ),
                           ),
-                        // Divider(),
                       ],
                     ),
                   )
@@ -208,21 +224,47 @@ class _AddRoleScreenState extends State<AddRoleScreen> {
           }
         });
 
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Роль успешно добавлена!')));
+        // Отправка данных в Firebase Firestore
+        final CollectionReference rolesRef =
+            FirebaseFirestore.instance.collection('roles');
 
-        // Возвращаемся к списку заказов
+        final DocumentReference roleDocRef = await rolesRef.add({
+          'role_name': _roleName,
+          'created_at': FieldValue.serverTimestamp(),
+        });
+
+        final CollectionReference permissionsRef = roleDocRef.collection('permissions');
+
+        for (var table in _tables) {
+          if (_permissions[table]!['view']! ||
+              _permissions[table]!['create']! ||
+              _permissions[table]!['update']! ||
+              _permissions[table]!['delete']!) {
+            await permissionsRef.add({
+              'table_name': table,
+              'can_view': _permissions[table]!['view'],
+              'can_create': _permissions[table]!['create'],
+              'can_update': _permissions[table]!['update'],
+              'can_delete': _permissions[table]!['delete'],
+            });
+          }
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Роль успешно добавлена!')),
+        );
+
+        // Возвращаемся к списку ролей
         Navigator.pop(context);
       } catch (e) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Ошибка: ${e.toString()}')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Ошибка: ${e.toString()}')),
+        );
       }
     }
   }
 
-  // Добавляем новый метод для определения типа доступа
+  // Метод для определения типа доступа
   String _getAccessType(String table) {
     if (_permissions[table]!['create']! ||
         _permissions[table]!['update']! ||
@@ -232,18 +274,3 @@ class _AddRoleScreenState extends State<AddRoleScreen> {
     return 'read_only';
   }
 }
-
-  final Map<String, String> _tableNamesRu = {
-    'Users': 'Пользователи',
-    'Roles': 'Роли',
-    'Suppliers': 'Поставщики',
-    'Categories': 'Категории',
-    'Products': 'Продукты',
-    'Warehouses': 'Склады',
-    'Inventory': 'Инвентарь',
-    'Customers': 'Клиенты',
-    'Orders': 'Заказы',
-    'Order_Details': 'Детали заказов',
-    'Transactions': 'Транзакции',
-    'Logs': 'Логи',
-  };

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "814273167111",
+    "project_id": "diplo-3c670",
+    "storage_bucket": "diplo-3c670.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:814273167111:android:9919787b21cdebf4844fa2",
+        "android_client_info": {
+          "package_name": "com.example.erd"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBqBV1K-jrNXpGecounVfrk67mCP-D10Lw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

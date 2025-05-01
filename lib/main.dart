@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
@@ -21,6 +23,8 @@ import 'package:path/path.dart';
 import 'package:file_picker/file_picker.dart';
 
 void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
   try {
     print('Initializing application...');
 
@@ -40,9 +44,11 @@ void main() async {
     databaseFactory = databaseFactoryFfi;
     print('SQLite FFI initialized successfully');
 
-    print('Initializing Flutter bindings...');
-    WidgetsFlutterBinding.ensureInitialized();
-    print('Flutter bindings initialized successfully');
+    print('Initializing Firebase...');
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    print('Firebase initialized successfully');
 
     print('Creating database helper...');
     final dbHelper = DatabaseHelper();

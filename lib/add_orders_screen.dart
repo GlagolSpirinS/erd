@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'database_helper.dart';
 import 'order_status.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // Добавлено для Firebase
+import 'package:firebase_core/firebase_core.dart';   // Добавлено для инициализации Firebase
 
 class AddOrdersScreen extends StatefulWidget {
   final int currentUserRole;
@@ -168,7 +170,7 @@ class _AddOrdersScreenState extends State<AddOrdersScreen> {
       final db = await dbHelper.database;
 
       try {
-        // Вставляем данные в таблицу Orders
+        // Локальное сохранение в SQLite
         await db.insert('Orders', {
           'customer_id': _customerId,
           'user_id': _userId,
@@ -176,17 +178,25 @@ class _AddOrdersScreenState extends State<AddOrdersScreen> {
           // Поле order_date заполнится автоматически
         });
 
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Заказ успешно добавлен!')));
+        // Отправка данных в Firebase Firestore
+        await FirebaseFirestore.instance.collection('orders').add({
+          'customer_id': _customerId,
+          'user_id': _userId,
+          'status': _status.displayName,
+          'order_date': FieldValue.serverTimestamp(), // Автоматическое время
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Заказ успешно добавлен!')),
+        );
 
         // Возвращаемся к списку заказов
         Navigator.pop(context);
       } catch (e) {
         // Обработка ошибок
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Ошибка: ${e.toString()}')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Ошибка: ${e.toString()}')),
+        );
       }
     }
   }
