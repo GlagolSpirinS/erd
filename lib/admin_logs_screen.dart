@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'database_helper.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; // Firebase
-import 'package:firebase_core/firebase_core.dart';     // Firebase
 
 class AdminLogsScreen extends StatefulWidget {
   const AdminLogsScreen({Key? key}) : super(key: key);
@@ -17,7 +15,6 @@ class _AdminLogsScreenState extends State<AdminLogsScreen> {
   String _selectedAction = 'Все';
   DateTime? _startDate;
   DateTime? _endDate;
-
   final List<String> _actionTypes = [
     'Все',
     'Создание пользователя',
@@ -60,27 +57,33 @@ class _AdminLogsScreenState extends State<AdminLogsScreen> {
   @override
   void initState() {
     super.initState();
-    _loadLogsFromFirebase(); // Теперь загружаем из Firebase
+    _loadLogs();
   }
 
-  Future<void> _loadLogsFromFirebase() async {
-    setState(() => _isLoading = true);
+  Future<void> _loadLogs() async {
+    setState(() {
+      _isLoading = true;
+    });
     try {
-      final logsSnapshot = await FirebaseFirestore.instance
-          .collection('logs')
-          .orderBy('timestamp', descending: true)
-          .get();
-
-      final logs = logsSnapshot.docs.map((doc) => doc.data()).toList();
-
+      if (_selectedAction == 'Все') {
+        final logs = await _dbHelper.getLogs();
+        setState(() {
+          _logs = logs;
+          _isLoading = false;
+        });
+      } else {
+        final logs = await _dbHelper.getLogsByAction(_selectedAction);
+        setState(() {
+          _logs = logs;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
       setState(() {
-        _logs = logs.cast<Map<String, dynamic>>();
         _isLoading = false;
       });
-    } catch (e) {
-      setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Ошибка загрузки логов из Firebase: $e')),
+        SnackBar(content: Text('Ошибка при загрузке логов: $e')),
       );
     }
   }
@@ -101,81 +104,29 @@ class _AdminLogsScreenState extends State<AdminLogsScreen> {
         _startDate = picked.start;
         _endDate = picked.end;
       });
-      _filterLogsByDate(_startDate!, _endDate!);
+      _loadLogsByDateRange();
     }
   }
 
-  void _filterLogsByDate(DateTime start, DateTime end) {
+  Future<void> _loadLogsByDateRange() async {
+    if (_startDate == null || _endDate == null) return;
+
     setState(() {
       _isLoading = true;
     });
-
     try {
-      final filteredLogs = _logs.where((log) {
-        final timestamp = DateTime.parse(log['timestamp']);
-        return timestamp.isAfter(start) && timestamp.isBefore(end.add(Duration(days: 1)));
-      }).toList();
-
+      final logs = await _dbHelper.getLogsByDateRange(_startDate!, _endDate!);
       setState(() {
-        _logs = filteredLogs;
+        _logs = logs;
         _isLoading = false;
       });
     } catch (e) {
-      setState(() => _isLoading = false);
+      setState(() {
+        _isLoading = false;
+      });
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Ошибка фильтрации логов: $e')),
+        SnackBar(content: Text('Ошибка при загрузке логов: $e')),
       );
-    }
-  }
-
-  IconData _getActionIcon(String action) {
-    switch (action) {
-      case 'Создание пользователя':
-      case 'Создание роли':
-      case 'Создание поставщика':
-      case 'Создание категории':
-      case 'Создание товара':
-      case 'Создание склада':
-      case 'Создание инвентаря':
-      case 'Создание клиента':
-      case 'Создание заказа':
-      case 'Создание детали заказа':
-      case 'Создание Накладная':
-        return Icons.add_circle;
-
-      case 'Обновление пользователя':
-      case 'Обновление роли':
-      case 'Обновление поставщика':
-      case 'Обновление категории':
-      case 'Обновление товара':
-      case 'Обновление склада':
-      case 'Обновление инвентаря':
-      case 'Обновление клиента':
-      case 'Обновление заказа':
-      case 'Обновление детали заказа':
-      case 'Обновление Накладная':
-        return Icons.edit;
-
-      case 'Удаление пользователя':
-      case 'Удаление роли':
-      case 'Удаление поставщика':
-      case 'Удаление категории':
-      case 'Удаление товара':
-      case 'Удаление склада':
-      case 'Удаление инвентаря':
-      case 'Удаление клиента':
-      case 'Удаление заказа':
-      case 'Удаление детали заказа':
-      case 'Удаление Накладная':
-        return Icons.delete;
-
-      case 'Вход в систему':
-        return Icons.login;
-      case 'Выход из системы':
-        return Icons.logout;
-
-      default:
-        return Icons.history;
     }
   }
 
@@ -185,7 +136,10 @@ class _AdminLogsScreenState extends State<AdminLogsScreen> {
       appBar: AppBar(
         title: const Text('Журнал действий'),
         actions: [
-          IconButton(icon: Icon(Icons.refresh), onPressed: _loadLogsFromFirebase),
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _loadLogs,
+          ),
         ],
       ),
       body: Column(
@@ -204,10 +158,11 @@ class _AdminLogsScreenState extends State<AdminLogsScreen> {
                       );
                     }).toList(),
                     onChanged: (String? newValue) {
-                      if (newValue != null && newValue != 'Все') {
-                        _filterLogsByAction(newValue);
-                      } else {
-                        _loadLogsFromFirebase();
+                      if (newValue != null) {
+                        setState(() {
+                          _selectedAction = newValue;
+                        });
+                        _loadLogs();
                       }
                     },
                   ),
@@ -216,34 +171,38 @@ class _AdminLogsScreenState extends State<AdminLogsScreen> {
                 ElevatedButton.icon(
                   onPressed: _selectDateRange,
                   icon: const Icon(Icons.calendar_today),
-                  label: Text(
-                    _startDate != null && _endDate != null
-                        ? '${_startDate!.day}/${_startDate!.month}/${_startDate!.year} - ${_endDate!.day}/${_endDate!.month}/${_endDate!.year}'
-                        : 'Выбрать период',
-                  ),
+                  label: Text(_startDate != null && _endDate != null
+                      ? '${_startDate!.day}/${_startDate!.month}/${_startDate!.year} - ${_endDate!.day}/${_endDate!.month}/${_endDate!.year}'
+                      : 'Выбрать период'),
                 ),
               ],
             ),
           ),
           Expanded(
             child: _isLoading
-                ? Center(child: CircularProgressIndicator())
+                ? const Center(child: CircularProgressIndicator())
                 : _logs.isEmpty
-                    ? Center(child: Text('Нет записей в журнале'))
+                    ? const Center(child: Text('Нет записей в журнале'))
                     : ListView.builder(
                         itemCount: _logs.length,
                         itemBuilder: (context, index) {
                           final log = _logs[index];
                           return Card(
-                            margin: EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+                            margin: const EdgeInsets.symmetric(
+                              horizontal: 8.0,
+                              vertical: 4.0,
+                            ),
                             child: ListTile(
-                              title: Text('${log['action']}'),
+                              title: Text(log['action']),
                               subtitle: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text('Пользователь: ${log['username'] ?? 'Неизвестен'}'),
-                                  if (log['details'] != null) Text('Детали: ${log['details']}'),
-                                  Text('Время: ${DateTime.parse(log['timestamp']).toLocal()}'),
+                                  Text('Пользователь: ${log['username']}'),
+                                  if (log['details'] != null)
+                                    Text('Детали: ${log['details']}'),
+                                  Text(
+                                    'Время: ${DateTime.parse(log['timestamp']).toLocal().toString().split('.')[0]}',
+                                  ),
                                 ],
                               ),
                               leading: Icon(_getActionIcon(log['action'])),
@@ -257,22 +216,53 @@ class _AdminLogsScreenState extends State<AdminLogsScreen> {
     );
   }
 
-  void _filterLogsByAction(String action) {
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      final filtered = _logs.where((log) => log['action'] == action).toList();
-      setState(() {
-        _logs = filtered;
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Ошибка фильтрации: $e')),
-      );
+  IconData _getActionIcon(String action) {
+    switch (action) {
+      case 'Создание пользователя':
+        return Icons.person_add;
+      case 'Обновление пользователя':
+        return Icons.edit;
+      case 'Удаление пользователя':
+        return Icons.person_remove;
+      case 'Вход в систему':
+        return Icons.login;
+      case 'Выход из системы':
+        return Icons.logout;
+      case 'Создание роли':
+      case 'Создание поставщика':
+      case 'Создание категории':
+      case 'Создание товара':
+      case 'Создание склада':
+      case 'Создание инвентаря':
+      case 'Создание клиента':
+      case 'Создание заказа':
+      case 'Создание детали заказа':
+      case 'Создание Накладная':
+        return Icons.add_circle;
+      case 'Обновление роли':
+      case 'Обновление поставщика':
+      case 'Обновление категории':
+      case 'Обновление товара':
+      case 'Обновление склада':
+      case 'Обновление инвентаря':
+      case 'Обновление клиента':
+      case 'Обновление заказа':
+      case 'Обновление детали заказа':
+      case 'Обновление Накладная':
+        return Icons.edit;
+      case 'Удаление роли':
+      case 'Удаление поставщика':
+      case 'Удаление категории':
+      case 'Удаление товара':
+      case 'Удаление склада':
+      case 'Удаление инвентаря':
+      case 'Удаление клиента':
+      case 'Удаление заказа':
+      case 'Удаление детали заказа':
+      case 'Удаление Накладная':
+        return Icons.delete;
+      default:
+        return Icons.history;
     }
   }
-}
+} 

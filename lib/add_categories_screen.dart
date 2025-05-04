@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; // Импорт для Firestore
 import 'package:sqflite/sqflite.dart';
-import 'database_helper.dart'; // Предполагается, что он у вас уже есть
+import 'database_helper.dart';
 
 class AddCategoriesScreen extends StatefulWidget {
   final int currentUserRole;
@@ -16,6 +15,7 @@ class _AddCategoriesScreenState extends State<AddCategoriesScreen> {
   final _formKey = GlobalKey<FormState>();
   final DatabaseHelper dbHelper = DatabaseHelper();
 
+  // Поля для хранения данных из формы
   String _name = '';
   String _description = '';
 
@@ -49,7 +49,6 @@ class _AddCategoriesScreenState extends State<AddCategoriesScreen> {
         child: Form(
           key: _formKey,
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               TextFormField(
                 decoration: InputDecoration(labelText: 'Название категории'),
@@ -63,10 +62,9 @@ class _AddCategoriesScreenState extends State<AddCategoriesScreen> {
                   _name = value!;
                 },
               ),
-              SizedBox(height: 10),
+              SizedBox(height: 5),
               TextFormField(
                 decoration: InputDecoration(labelText: 'Описание'),
-                maxLines: 3,
                 onSaved: (value) {
                   _description = value ?? '';
                 },
@@ -87,34 +85,29 @@ class _AddCategoriesScreenState extends State<AddCategoriesScreen> {
     if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
 
-      final db = FirebaseFirestore.instance; // Получаем экземпляр Firestore
+      final db = await dbHelper.database;
 
       try {
-        // Добавляем новую запись в коллекцию "categories"
-        await db.collection("categories").add({
-          "name": _name,
-          "description": _description,
-          "createdAt": FieldValue.serverTimestamp(), // временная метка от сервера
-        });
-
-        // Показываем сообщение об успехе
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Категория успешно добавлена в Firebase!')),
+        // Вставляем данные в таблицу Categories
+        await db.insert(
+          'Categories',
+          {'name': _name, 'description': _description},
+          conflictAlgorithm:
+              ConflictAlgorithm
+                  .replace, // Обработка конфликтов (если категория уже существует)
         );
 
-        // Очистка формы (опционально)
-        setState(() {
-          _name = '';
-          _description = '';
-        });
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Категория успешно добавлена!')));
 
-        // Возвращаемся обратно
+        // Возвращаемся к предыдущему экрану
         Navigator.pop(context);
       } catch (e) {
-        // Обработка ошибок
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Ошибка при добавлении категории: $e')),
-        );
+        // Обработка ошибок (например, если категория уже существует)
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Ошибка: ${e.toString()}')));
       }
     }
   }

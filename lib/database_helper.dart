@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
@@ -10,6 +9,8 @@ import 'model.dart';
 class DatabaseHelper {
   static final DatabaseHelper _instance = DatabaseHelper._internal();
   static Database? _database;
+
+  static DatabaseHelper get instance => _instance;
 
   factory DatabaseHelper() {
     return _instance;
@@ -32,7 +33,7 @@ class DatabaseHelper {
       // Open the database
       return await openDatabase(
         path,
-        version: 5,
+        version: 6,
         onCreate: (Database db, int version) async {
           print('Creating new database...');
           // Create tables and insert initial data
@@ -63,6 +64,34 @@ class DatabaseHelper {
               )
             ''');
           }
+          if (oldVersion < 6) {
+            // Создаем временную таблицу с новой схемой
+            await db.execute('''
+              CREATE TABLE Products_new (
+                product_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                category_id INTEGER,
+                supplier_id INTEGER,
+                price REAL NOT NULL,
+                quantity INTEGER,
+                FOREIGN KEY (category_id) REFERENCES Categories (category_id) ON DELETE SET NULL,
+                FOREIGN KEY (supplier_id) REFERENCES Suppliers (supplier_id) ON DELETE SET NULL
+              )
+            ''');
+            
+            // Копируем данные из старой таблицы в новую, преобразуя price в REAL
+            await db.execute('''
+              INSERT INTO Products_new 
+              SELECT product_id, name, category_id, supplier_id, CAST(price AS REAL), quantity 
+              FROM Products
+            ''');
+            
+            // Удаляем старую таблицу
+            await db.execute('DROP TABLE Products');
+            
+            // Переименовываем новую таблицу
+            await db.execute('ALTER TABLE Products_new RENAME TO Products');
+          }
         },
       );
     } catch (e) {
@@ -77,7 +106,7 @@ class DatabaseHelper {
       // Retry creating the database
       return await openDatabase(
         path,
-        version: 3,
+        version: 6,
         onCreate: (Database db, int version) async {
           print('Retrying database creation...');
           await _onCreate(db, version);
@@ -171,45 +200,10 @@ class DatabaseHelper {
         name TEXT NOT NULL,
         category_id INTEGER,
         supplier_id INTEGER,
-        price NUMERIC(10,2) NOT NULL,
+        price REAL NOT NULL,
         quantity INTEGER,
         FOREIGN KEY (category_id) REFERENCES Categories (category_id) ON DELETE SET NULL,
         FOREIGN KEY (supplier_id) REFERENCES Suppliers (supplier_id) ON DELETE SET NULL
-      )
-    ''');
-
-    await db.execute('''
-      CREATE TABLE Customers (
-        customer_id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        contact_name TEXT,
-        phone TEXT,
-        email TEXT,
-        address TEXT
-      )
-    ''');
-
-    await db.execute('''
-      CREATE TABLE Orders (
-        order_id INTEGER PRIMARY KEY AUTOINCREMENT,
-        customer_id INTEGER,
-        user_id INTEGER,
-        order_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        status TEXT NOT NULL,
-        FOREIGN KEY (customer_id) REFERENCES Customers (customer_id) ON DELETE SET NULL,
-        FOREIGN KEY (user_id) REFERENCES Users (user_id) ON DELETE SET NULL
-      )
-    ''');
-
-    await db.execute('''
-      CREATE TABLE Order_Details (
-        order_detail_id INTEGER PRIMARY KEY AUTOINCREMENT,
-        order_id INTEGER,
-        product_id INTEGER,
-        quantity INTEGER NOT NULL,
-        price NUMERIC(10,2) NOT NULL,
-        FOREIGN KEY (order_id) REFERENCES Orders (order_id) ON DELETE CASCADE,
-        FOREIGN KEY (product_id) REFERENCES Products (product_id) ON DELETE CASCADE
       )
     ''');
 
@@ -252,7 +246,6 @@ class DatabaseHelper {
         'Suppliers',
         'Categories',
         'Products',
-        'Customers',
         'Orders',
         'Order_Details',
         'Transactions',
@@ -299,9 +292,8 @@ class DatabaseHelper {
   Future<List<CategorySales>> getCategorySales() async {
     final db = await this.database;
     final result = await db.rawQuery('''
-      SELECT c.name as categoryName, SUM(od.quantity) as salesCount
-      FROM Order_Details od
-      JOIN Products p ON od.product_id = p.product_id
+      SELECT c.name as categoryName, COUNT(*) as salesCount
+      FROM Products p
       JOIN Categories c ON p.category_id = c.category_id
       GROUP BY c.category_id
     ''');
@@ -316,19 +308,6 @@ class DatabaseHelper {
         .toList();
   }
 
-  // Получить распределение заказов по статусам
-  Future<List<OrderStatus>> getOrderStatusDistribution() async {
-    final db = await this.database;
-    final result = await db.rawQuery('''
-      SELECT status, COUNT(*) as count
-      FROM Orders
-      GROUP BY status
-    ''');
-
-    return result
-        .map((e) => OrderStatus(e['status'] as String, e['count'] as int))
-        .toList();
-  }
 
   Future<List<TransactionType>> getTransactionTypes() async {
     final db = await this.database;
@@ -360,24 +339,6 @@ class DatabaseHelper {
     });
   }
 
-Future<void> logAction(String action, {String? details, String? username}) async {
-  final db = await database;
-  await db.insert('Logs', {
-    'action': action,
-    'details': details,
-    'username': username,
-    'timestamp': DateTime.now().toIso8601String(),
-  });
-
-  // Отправляем в Firebase
-  await FirebaseFirestore.instance.collection('logs').add({
-    'action': action,
-    'details': details,
-    'username': username,
-    'timestamp': FieldValue.serverTimestamp(),
-  });
-}
-
   Future<List<SupplierDistribution>> getSupplierDistribution() async {
     final db = await database;
     final List<Map<String, dynamic>> maps = await db.rawQuery('''
@@ -392,40 +353,6 @@ Future<void> logAction(String action, {String? details, String? username}) async
         maps[i]['supplier_name'],
         maps[i]['product_count'],
       );
-    });
-  }
-
-  Future<List<MonthlySales>> getMonthlySales() async {
-    final db = await database;
-    final List<Map<String, dynamic>> maps = await db.rawQuery('''
-      SELECT 
-        strftime('%Y-%m', o.order_date) as month,
-        SUM(od.quantity * od.price) as total_sales
-      FROM Orders o
-      JOIN Order_Details od ON o.order_id = od.order_id
-      GROUP BY strftime('%Y-%m', o.order_date)
-      ORDER BY month DESC
-      LIMIT 12
-    ''');
-
-    return List.generate(maps.length, (i) {
-      return MonthlySales(maps[i]['month'], maps[i]['total_sales'] ?? 0.0);
-    });
-  }
-
-  Future<List<CustomerOrders>> getCustomerOrders() async {
-    final db = await database;
-    final List<Map<String, dynamic>> maps = await db.rawQuery('''
-      SELECT c.name as customer_name, COUNT(o.order_id) as order_count
-      FROM Customers c
-      LEFT JOIN Orders o ON c.customer_id = o.customer_id
-      GROUP BY c.customer_id, c.name
-      ORDER BY order_count DESC
-      LIMIT 10
-    ''');
-
-    return List.generate(maps.length, (i) {
-      return CustomerOrders(maps[i]['customer_name'], maps[i]['order_count']);
     });
   }
 
@@ -714,11 +641,7 @@ Future<void> logAction(String action, {String? details, String? username}) async
     });
   }
 
-  Future<void> logProductAction(
-    int userId,
-    String action,
-    String details,
-  ) async {
+  Future<void> logProductAction(int userId, String action, String details) async {
     final db = await database;
     await db.insert('Logs', {
       'user_id': userId,
@@ -728,32 +651,6 @@ Future<void> logAction(String action, {String? details, String? username}) async
   }
 
   Future<void> logWarehouseAction(
-    int userId,
-    String action,
-    String details,
-  ) async {
-    final db = await database;
-    await db.insert('Logs', {
-      'user_id': userId,
-      'action': action,
-      'details': details,
-    });
-  }
-
-  Future<void> logInventoryAction(
-    int userId,
-    String action,
-    String details,
-  ) async {
-    final db = await database;
-    await db.insert('Logs', {
-      'user_id': userId,
-      'action': action,
-      'details': details,
-    });
-  }
-
-  Future<void> logCustomerAction(
     int userId,
     String action,
     String details,
@@ -1005,59 +902,6 @@ Future<void> logAction(String action, {String? details, String? username}) async
     return result;
   }
 
-  Future<int> insertCustomer(Map<String, dynamic> customer, int userId) async {
-    final db = await database;
-    final id = await db.insert('Customers', customer);
-    await logCustomerAction(
-      userId,
-      'Создание клиента',
-      'Создан клиент: ${customer['name']}',
-    );
-    return id;
-  }
-
-  Future<int> updateCustomer(
-    int id,
-    Map<String, dynamic> customer,
-    int userId,
-  ) async {
-    final db = await database;
-    final result = await db.update(
-      'Customers',
-      customer,
-      where: 'customer_id = ?',
-      whereArgs: [id],
-    );
-    await logCustomerAction(
-      userId,
-      'Обновление клиента',
-      'Обновлен клиент: ${customer['name']}',
-    );
-    return result;
-  }
-
-  Future<int> deleteCustomer(int id, int userId) async {
-    final db = await database;
-    final customer = await db.query(
-      'Customers',
-      where: 'customer_id = ?',
-      whereArgs: [id],
-    );
-    final result = await db.delete(
-      'Customers',
-      where: 'customer_id = ?',
-      whereArgs: [id],
-    );
-    if (customer.isNotEmpty) {
-      await logCustomerAction(
-        userId,
-        'Удаление клиента',
-        'Удален клиент: ${customer.first['name']}',
-      );
-    }
-    return result;
-  }
-
   Future<int> insertOrder(Map<String, dynamic> order, int userId) async {
     final db = await database;
     final id = await db.insert('Orders', order);
@@ -1197,6 +1041,22 @@ Future<void> logAction(String action, {String? details, String? username}) async
     return result;
   }
 
+  Future<List<ProductStock>> getProductsInStock() async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.rawQuery('''
+      SELECT p.name as productName, p.quantity as quantity
+      FROM Products p
+      WHERE p.quantity > 0
+    ''');
+
+    return List.generate(maps.length, (i) {
+      return ProductStock(
+        productName: maps[i]['productName'],
+        quantity: maps[i]['quantity'],
+      );
+    });
+  }
+
   Future<bool> checkRolePermission(
     int roleId,
     String tableName,
@@ -1236,4 +1096,11 @@ Future<void> logAction(String action, {String? details, String? username}) async
       whereArgs: [roleId],
     );
   }
+}
+
+class ProductStock {
+  final String productName;
+  final int quantity;
+
+  ProductStock({required this.productName, required this.quantity});
 }

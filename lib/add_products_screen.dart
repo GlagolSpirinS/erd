@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'database_helper.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; // Добавлено для Firebase
-import 'package:firebase_core/firebase_core.dart';   // Добавлено для инициализации Firebase
 
 class AddProductsScreen extends StatefulWidget {
   @override
@@ -126,7 +124,6 @@ class _AddProductsScreenState extends State<AddProductsScreen> {
                 },
               ),
               SizedBox(height: 5),
-              // Поле количества временно закомментировано
               // TextFormField(
               //   decoration: InputDecoration(labelText: 'Количество'),
               //   validator: (value) {
@@ -158,7 +155,7 @@ class _AddProductsScreenState extends State<AddProductsScreen> {
       final db = await dbHelper.database;
 
       try {
-        // Локальное сохранение в SQLite
+        // Вставляем данные в таблицу Products
         await db.insert('Products', {
           'name': _name,
           'category_id': _categoryId,
@@ -167,27 +164,17 @@ class _AddProductsScreenState extends State<AddProductsScreen> {
           'quantity': _quantity,
         });
 
-        // Отправка данных в Firebase Firestore
-        await FirebaseFirestore.instance.collection('products').add({
-          'name': _name,
-          'category_id': _categoryId,
-          'supplier_id': _supplierId,
-          'price': _price,
-          'quantity': _quantity,
-          'created_at': FieldValue.serverTimestamp(),
-        });
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Товар успешно добавлен!')));
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Товар успешно добавлен!')),
-        );
-
-        // Возвращаемся к списку товаров
+        // Возвращаемся к предыдущему экрану
         Navigator.pop(context);
       } catch (e) {
         // Обработка ошибок
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Ошибка: ${e.toString()}')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Ошибка: ${e.toString()}')));
       }
     }
   }
