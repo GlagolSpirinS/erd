@@ -330,6 +330,8 @@ class _RolesListScreenState extends DocumentListState<RolesListScreen> {
               scrollDirection: Axis.horizontal,
               child: SingleChildScrollView(
                 child: DataTable(
+                    headingRowColor: MaterialStateProperty.all(const Color(0xFFF5F5F5)), // Синий фон заголовка
+                    headingTextStyle: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold), // Белый текст
                   columns: [
                     const DataColumn(
                       label: Text('Действия'),

@@ -27,10 +27,10 @@ class _ProductsListScreenState extends DocumentListState<ProductsListScreen> {
   Map<String, String> get columnTranslations => {
         'product_id': 'ID товара',
         'name': 'Наименование',
-        'price': 'Цена',
-        'quantity': 'Количество',
         'category_name': 'Категория',
         'supplier_name': 'Поставщик',
+        'price': 'Цена',
+        'quantity': 'Количество',
       };
 
   List<Map<String, dynamic>> categories = [];
@@ -69,14 +69,14 @@ class _ProductsListScreenState extends DocumentListState<ProductsListScreen> {
       SELECT 
         p.product_id,
         p.name,
-        p.price,
-        p.quantity,
         p.category_id,
         p.supplier_id,
         c.name as category_name,
         s.name as supplier_name,
         c.category_id as category_id_original,
-        s.supplier_id as supplier_id_original
+        s.supplier_id as supplier_id_original,
+        p.price,
+        p.quantity
       FROM Products p
       LEFT JOIN Categories c ON p.category_id = c.category_id
       LEFT JOIN Suppliers s ON p.supplier_id = s.supplier_id
@@ -458,6 +458,8 @@ class _ProductsListScreenState extends DocumentListState<ProductsListScreen> {
               scrollDirection: Axis.horizontal,
               child: SingleChildScrollView(
                 child: DataTable(
+                    headingRowColor: MaterialStateProperty.all(const Color(0xFFF5F5F5)), // Синий фон заголовка
+                    headingTextStyle: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold), // Белый текст
                   columns: [
                     const DataColumn(
                       label: Text('Действия'),
@@ -517,10 +519,10 @@ class _ProductsListScreenState extends DocumentListState<ProductsListScreen> {
                         ),
                         DataCell(Text(row['product_id']?.toString() ?? '')),
                         DataCell(Text(row['name']?.toString() ?? '')),
-                        DataCell(Text(row['price']?.toString() ?? '')),
-                        DataCell(Text(row['quantity']?.toString() ?? '')),
                         DataCell(Text(row['category_id']?.toString() ?? 'Нет категории')),
                         DataCell(Text(row['supplier_id']?.toString() ?? 'Нет поставщика')),
+                        DataCell(Text(row['price']?.toString() ?? '')),
+                        DataCell(Text(row['quantity']?.toString() ?? '')),
                       ],
                     );
                   }).toList(),

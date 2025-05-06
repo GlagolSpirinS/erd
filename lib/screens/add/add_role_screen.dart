@@ -25,11 +25,6 @@ class _AddRoleScreenState extends State<AddRoleScreen> {
     'Suppliers',
     'Categories',
     'Products',
-    'Warehouses',
-    'Inventory',
-    'Customers',
-    'Orders',
-    'Order_Details',
     'Transactions',
     'Logs',
   ];
@@ -239,11 +234,6 @@ class _AddRoleScreenState extends State<AddRoleScreen> {
     'Suppliers': 'Поставщики',
     'Categories': 'Категории',
     'Products': 'Продукты',
-    'Warehouses': 'Склады',
-    'Inventory': 'Инвентарь',
-    'Customers': 'Клиенты',
-    'Orders': 'Заказы',
-    'Order_Details': 'Детали заказов',
     'Transactions': 'Транзакции',
     'Logs': 'Логи',
   };
