@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sqflite/sqflite.dart';
 import 'database_helper.dart';
 
 class AddRoleScreen extends StatefulWidget {
@@ -18,12 +19,17 @@ class _AddRoleScreenState extends State<AddRoleScreen> {
   String _roleName = '';
 
   // Список таблиц и их разрешений
-  List<String> tables = [
+  final List<String> _tables = [
     'Users',
     'Roles',
     'Suppliers',
     'Categories',
     'Products',
+    'Warehouses',
+    'Inventory',
+    'Customers',
+    'Orders',
+    'Order_Details',
     'Transactions',
     'Logs',
   ];
@@ -35,7 +41,7 @@ class _AddRoleScreenState extends State<AddRoleScreen> {
   void initState() {
     super.initState();
     // Инициализация разрешений для каждой таблицы
-    for (var table in tables) {
+    for (var table in _tables) {
       _permissions[table] = {
         'view': false,
         'create': false,
@@ -65,11 +71,12 @@ class _AddRoleScreenState extends State<AddRoleScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text('Добавить роль')),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Form(
           key: _formKey,
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               TextFormField(
                 decoration: InputDecoration(labelText: 'Название роли'),
@@ -84,15 +91,79 @@ class _AddRoleScreenState extends State<AddRoleScreen> {
                 },
               ),
               SizedBox(height: 20),
-              Expanded(
-                child: ListView.builder(
-                  itemCount: tables.length,
-                  itemBuilder: (context, index) {
-                    final table = tables[index];
-                    return _buildTablePermissions(table);
-                  },
-                ),
+              Text(
+                'Права доступа к таблицам:',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
+              SizedBox(height: 10),
+              ..._tables
+                  .map(
+                    (table) => Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _tableNamesRu[table] ?? table,
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: CheckboxListTile(
+                                title: Text('Выдать доступ к таблице'),
+                                value: _permissions[table]!['view'],
+                                onChanged: (bool? value) {
+                                  setState(() {
+                                    _permissions[table]!['view'] = value!;
+                                    // Если доступ отключен, сбрасываем все другие разрешения
+                                    if (!value) {
+                                      _permissions[table]!['create'] = false;
+                                      _permissions[table]!['update'] = false;
+                                      _permissions[table]!['delete'] = false;
+                                    }
+                                  });
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (_permissions[table]!['view']!)
+                          Padding(
+                            padding: const EdgeInsets.only(left: 16.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                RadioListTile<String>(
+                                  title: Text('Только чтение'),
+                                  value: 'read_only',
+                                  groupValue: _getAccessType(table),
+                                  onChanged: (value) {
+                                    setState(() {
+                                      _permissions[table]!['create'] = false;
+                                      _permissions[table]!['update'] = false;
+                                      _permissions[table]!['delete'] = false;
+                                    });
+                                  },
+                                ),
+                                RadioListTile<String>(
+                                  title: Text('Полный доступ'),
+                                  value: 'full_access',
+                                  groupValue: _getAccessType(table),
+                                  onChanged: (value) {
+                                    setState(() {
+                                      _permissions[table]!['create'] = true;
+                                      _permissions[table]!['update'] = true;
+                                      _permissions[table]!['delete'] = true;
+                                    });
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                        // Divider(),
+                      ],
+                    ),
+                  )
+                  .toList(),
               SizedBox(height: 20),
               ElevatedButton(
                 onPressed: _submitForm,
@@ -100,71 +171,6 @@ class _AddRoleScreenState extends State<AddRoleScreen> {
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTablePermissions(String table) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              _tableNamesRu[table] ?? table,
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            SwitchListTile(
-              title: Text('Просмотр'),
-              value: _permissions[table]!['view']!,
-              onChanged: (bool value) {
-                setState(() {
-                  _permissions[table]!['view'] = value;
-                  if (!value) {
-                    // Если отключаем просмотр, отключаем и все остальные разрешения
-                    _permissions[table]!['create'] = false;
-                    _permissions[table]!['update'] = false;
-                    _permissions[table]!['delete'] = false;
-                  }
-                });
-              },
-            ),
-            SwitchListTile(
-              title: Text('Создание'),
-              value: _permissions[table]!['create']!,
-              onChanged: _permissions[table]!['view']!
-                  ? (bool value) {
-                      setState(() {
-                        _permissions[table]!['create'] = value;
-                      });
-                    }
-                  : null,
-            ),
-            SwitchListTile(
-              title: Text('Редактирование'),
-              value: _permissions[table]!['update']!,
-              onChanged: _permissions[table]!['view']!
-                  ? (bool value) {
-                      setState(() {
-                        _permissions[table]!['update'] = value;
-                      });
-                    }
-                  : null,
-            ),
-            SwitchListTile(
-              title: Text('Удаление'),
-              value: _permissions[table]!['delete']!,
-              onChanged: _permissions[table]!['view']!
-                  ? (bool value) {
-                      setState(() {
-                        _permissions[table]!['delete'] = value;
-                      });
-                    }
-                  : null,
-            ),
-          ],
         ),
       ),
     );
@@ -179,44 +185,65 @@ class _AddRoleScreenState extends State<AddRoleScreen> {
       try {
         // Начинаем транзакцию
         await db.transaction((txn) async {
-          // Вставляем новую роль
+          // Вставляем данные в таблицу Roles
           final roleId = await txn.insert('Roles', {
             'role_name': _roleName,
-          });
+          }, conflictAlgorithm: ConflictAlgorithm.replace);
 
-          // Вставляем разрешения для роли
-          for (var table in tables) {
-            await txn.insert('RolePermissions', {
-              'role_id': roleId,
-              'table_name': table,
-              'can_view': _permissions[table]!['view']! ? 1 : 0,
-              'can_create': _permissions[table]!['create']! ? 1 : 0,
-              'can_update': _permissions[table]!['update']! ? 1 : 0,
-              'can_delete': _permissions[table]!['delete']! ? 1 : 0,
-            });
+          // Вставляем разрешения для каждой таблицы
+          for (var table in _tables) {
+            if (_permissions[table]!['view']! ||
+                _permissions[table]!['create']! ||
+                _permissions[table]!['update']! ||
+                _permissions[table]!['delete']!) {
+              await txn.insert('RolePermissions', {
+                'role_id': roleId,
+                'table_name': table,
+                'can_view': _permissions[table]!['view']! ? 1 : 0,
+                'can_create': _permissions[table]!['create']! ? 1 : 0,
+                'can_update': _permissions[table]!['update']! ? 1 : 0,
+                'can_delete': _permissions[table]!['delete']! ? 1 : 0,
+              });
+            }
           }
         });
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Роль успешно добавлена!')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Роль успешно добавлена!')));
 
+        // Возвращаемся к списку заказов
         Navigator.pop(context);
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Ошибка: ${e.toString()}')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Ошибка: ${e.toString()}')));
       }
     }
   }
+
+  // Добавляем новый метод для определения типа доступа
+  String _getAccessType(String table) {
+    if (_permissions[table]!['create']! ||
+        _permissions[table]!['update']! ||
+        _permissions[table]!['delete']!) {
+      return 'full_access';
+    }
+    return 'read_only';
+  }
 }
 
-final Map<String, String> _tableNamesRu = {
-  'Users': 'Пользователи',
-  'Roles': 'Роли',
-  'Suppliers': 'Поставщики',
-  'Categories': 'Категории',
-  'Products': 'Товары',
-  'Transactions': 'Накладная',
-  'Logs': 'Журнал действий',
-};
+  final Map<String, String> _tableNamesRu = {
+    'Users': 'Пользователи',
+    'Roles': 'Роли',
+    'Suppliers': 'Поставщики',
+    'Categories': 'Категории',
+    'Products': 'Продукты',
+    'Warehouses': 'Склады',
+    'Inventory': 'Инвентарь',
+    'Customers': 'Клиенты',
+    'Orders': 'Заказы',
+    'Order_Details': 'Детали заказов',
+    'Transactions': 'Транзакции',
+    'Logs': 'Логи',
+  };

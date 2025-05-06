@@ -477,10 +477,10 @@ class _TableDataScreenState extends State<TableDataScreen> {
       final data = await db.rawQuery('''
         SELECT 
           p.*,
-          c.name as category_name,
-          s.name as supplier_name,
           c.category_id,
-          s.supplier_id
+          s.supplier_id,
+          c.name as category_name,
+          s.name as supplier_name
         FROM Products p
         LEFT JOIN Categories c ON p.category_id = c.category_id
         LEFT JOIN Suppliers s ON p.supplier_id = s.supplier_id
@@ -491,6 +491,8 @@ class _TableDataScreenState extends State<TableDataScreen> {
           final newRow = Map<String, dynamic>.from(row);
           newRow['category_id'] = row['category_name'] ?? 'Нет категории';
           newRow['supplier_id'] = row['supplier_name'] ?? 'Нет поставщика';
+          newRow.remove('category_id');
+          newRow.remove('supplier_id');
           return newRow;
         }).toList();
         filteredData = tableData;
@@ -508,10 +510,29 @@ class _TableDataScreenState extends State<TableDataScreen> {
         LEFT JOIN Products p ON t.product_id = p.product_id
         LEFT JOIN Users u ON t.user_id = u.user_id
       ''');
-
       setState(() {
         tableData = data.map((row) {
           return Map<String, dynamic>.from(row);
+        }).toList();
+        filteredData = tableData;
+      });
+    } else if (englishTableName == 'Users') {
+      final data = await db.rawQuery('''
+        SELECT 
+          u.user_id,
+          u.name,
+          u.surname,
+          u.password,
+          u.created_at,
+          r.role_name as role_id
+        FROM Users u
+        LEFT JOIN Roles r ON u.role_id = r.role_id
+      ''');
+      setState(() {
+        tableData = data.map((row) {
+          final newRow = Map<String, dynamic>.from(row);
+          newRow['role_id'] = row['role_id'] ?? 'Роль не указана';
+          return newRow;
         }).toList();
         filteredData = tableData;
       });
@@ -766,58 +787,57 @@ class _TableDataScreenState extends State<TableDataScreen> {
                           // Заголовки
                           Container(
                             color: Colors.grey[100],
-                            child: Row(
-                              children: [
-                                // Чекбокс и кнопка редактирования
-                                Container(
-                                  width: 100,
-                                  padding: EdgeInsets.symmetric(
-                                      horizontal: 16, vertical: 12),
-                                  child: Text(
-                                    'Действия',
-                                    style: TextStyle(
-                                      color: Color(
-                                          0xFF2196F3), // Устанавливаем нужный цвет
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                                ...filteredData[0].keys.map((key) {
-                                  final displayKey = translations[key] ?? key;
-                                  return InkWell(
-                                    onTap: () => _sort(key),
-                                    child: Container(
-                                      width: 200,
-                                      padding: EdgeInsets.symmetric(
-                                          horizontal: 16, vertical: 12),
-                                      child: Row(
-                                        children: [
-                                          Expanded(
-                                            child: Text(
-                                              displayKey,
-                                              style: TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                                color: Theme.of(context)
-                                                    .primaryColor,
-                                              ),
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                          ),
-                                          if (_sortColumn == key)
-                                            Icon(
-                                              _sortAscending
-                                                  ? Icons.arrow_upward
-                                                  : Icons.arrow_downward,
-                                              size: 16,
-                                              color: Theme.of(context)
-                                                  .primaryColor,
-                                            ),
-                                        ],
+                            child: SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: Row(
+                                children: [
+                                  // Чекбокс и кнопка редактирования
+                                  Container(
+                                    width: 100,
+                                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                    child: Text(
+                                      'Действия',
+                                      style: TextStyle(
+                                        color: Color(0xFF2196F3),
+                                        fontWeight: FontWeight.bold,
                                       ),
                                     ),
-                                  );
-                                }).toList(),
-                              ],
+                                  ),
+                                  ...filteredData[0].keys.map((key) {
+                                    final displayKey = translations[key] ?? key;
+                                    return Container(
+                                      width: key.endsWith('_id') ? 150 : 300,
+                                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                      child: InkWell(
+                                        onTap: () => _sort(key),
+                                        child: Row(
+                                          children: [
+                                            Expanded(
+                                              child: Text(
+                                                displayKey,
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Theme.of(context).primaryColor,
+                                                ),
+                                                maxLines: 2,
+                                                softWrap: true,
+                                              ),
+                                            ),
+                                            if (_sortColumn == key)
+                                              Icon(
+                                                _sortAscending
+                                                    ? Icons.arrow_upward
+                                                    : Icons.arrow_downward,
+                                                size: 16,
+                                                color: Theme.of(context).primaryColor,
+                                              ),
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                  }).toList(),
+                                ],
+                              ),
                             ),
                           ),
                           // Данные
@@ -841,81 +861,78 @@ class _TableDataScreenState extends State<TableDataScreen> {
                                 child: Container(
                                   decoration: BoxDecoration(
                                     border: Border(
-                                      bottom:
-                                          BorderSide(color: Colors.grey[300]!),
+                                      bottom: BorderSide(color: Colors.grey[300]!),
                                     ),
                                   ),
-                                  child: Row(
-                                    children: [
-                                      // Чекбокс и кнопка редактирования
-                                      Container(
-                                        width: 100,
-                                        padding:
-                                            EdgeInsets.symmetric(horizontal: 8),
-                                        child: Row(
-                                          children: [
-                                            Checkbox(
-                                              value:
-                                                  selectedRows.contains(index),
-                                              onChanged: (selected) {
-                                                setState(() {
-                                                  if (selected ?? false) {
-                                                    selectedRows.add(index);
-                                                  } else {
-                                                    selectedRows.remove(index);
-                                                  }
-                                                });
-                                              },
-                                            ),
-                                            IconButton(
-                                              icon: Icon(Icons.edit, size: 20),
-                                              onPressed: () =>
-                                                  _showEditDialog(context, row),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      ...row.values.map((dynamic value) {
-                                        return Container(
-                                          width: 200,
-                                          padding: EdgeInsets.symmetric(
-                                              horizontal: 16, vertical: 12),
-                                          child: Text(
-                                            value?.toString() ?? '',
-                                            style: TextStyle(
-                                                color: Colors.black87),
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        );
-                                      }).toList(),
-                                      Container(
-                                        width: 50,
-                                        alignment: Alignment.center,
-                                        child: PopupMenuButton<String>(
-                                          onSelected: (value) {
-                                            if (value == 'details') {
-                                              _showDocumentDetailsDialog(
-                                                  context, row);
-                                            }
-                                          },
-                                          itemBuilder: (context) => [
-                                            PopupMenuItem(
-                                              value: 'details',
-                                              child: Row(
-                                                children: [
-                                                  Icon(Icons.info_outline,
-                                                      size: 18,
-                                                      color: Theme.of(context)
-                                                          .primaryColor),
-                                                  SizedBox(width: 8),
-                                                  Text('Подробнее'),
-                                                ],
+                                  child: SingleChildScrollView(
+                                    scrollDirection: Axis.horizontal,
+                                    child: Row(
+                                      children: [
+                                        // Чекбокс и кнопка редактирования
+                                        Container(
+                                          width: 100,
+                                          padding: EdgeInsets.symmetric(horizontal: 8),
+                                          child: Row(
+                                            children: [
+                                              Checkbox(
+                                                value: selectedRows.contains(index),
+                                                onChanged: (selected) {
+                                                  setState(() {
+                                                    if (selected ?? false) {
+                                                      selectedRows.add(index);
+                                                    } else {
+                                                      selectedRows.remove(index);
+                                                    }
+                                                  });
+                                                },
                                               ),
-                                            ),
-                                          ],
+                                              IconButton(
+                                                icon: Icon(Icons.edit, size: 20),
+                                                onPressed: () => _showEditDialog(context, row),
+                                              ),
+                                            ],
+                                          ),
                                         ),
-                                      ),
-                                    ],
+                                        ...row.values.map((dynamic value) {
+                                          final key = row.keys.elementAt(row.values.toList().indexOf(value));
+                                          return Container(
+                                            width: key.endsWith('_id') ? 150 : 300,
+                                            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                            child: Text(
+                                              value?.toString() ?? '',
+                                              style: TextStyle(color: Colors.black87),
+                                              maxLines: 3,
+                                              softWrap: true,
+                                            ),
+                                          );
+                                        }).toList(),
+                                        Container(
+                                          width: 50,
+                                          alignment: Alignment.center,
+                                          child: PopupMenuButton<String>(
+                                            onSelected: (value) {
+                                              if (value == 'details') {
+                                                _showDocumentDetailsDialog(context, row);
+                                              }
+                                            },
+                                            itemBuilder: (context) => [
+                                              PopupMenuItem(
+                                                value: 'details',
+                                                child: Row(
+                                                  children: [
+                                                    Icon(Icons.info_outline,
+                                                        size: 18,
+                                                        color: Theme.of(context).primaryColor),
+                                                    SizedBox(width: 8),
+                                                    Text('Подробнее'),
+                                                  ],
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ),
