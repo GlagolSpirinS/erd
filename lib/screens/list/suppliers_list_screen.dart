@@ -249,7 +249,6 @@ class _SuppliersListScreenState extends DocumentListState<SuppliersListScreen> {
     fetchData();
   }
 
-  @override
   Future<void> _exportToExcel() async {
     try {
       final excel = excel_lib.Excel.createExcel();
