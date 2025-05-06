@@ -5,14 +5,14 @@ import 'package:flutter/material.dart';
 import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
-import 'add_products_screen.dart';
-import 'add_suppliers_screen.dart';
-import 'add_transactions_screen.dart';
+import 'screens/add/add_products_screen.dart';
+import 'screens/add/add_suppliers_screen.dart';
+import 'screens/add/add_transactions_screen.dart';
 import 'database_helper.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
-import 'add_user_screen.dart';
-import 'add_role_screen.dart';
-import 'add_categories_screen.dart';
+import 'screens/add/add_user_screen.dart';
+import 'screens/add/add_role_screen.dart';
+import 'screens/add/add_categories_screen.dart';
 import 'charts_widget.dart';
 import 'login_screen.dart';
 import 'admin_logs_screen.dart';
@@ -20,6 +20,12 @@ import 'package:path/path.dart';
 import 'package:file_picker/file_picker.dart';
 import 'database_management_screen.dart';
 import 'package:excel/excel.dart' as excel_lib;
+import 'screens/list/products_list_screen.dart';
+import 'screens/list/users_list_screen.dart';
+import 'screens/list/categories_list_screen.dart';
+import 'screens/list/suppliers_list_screen.dart';
+import 'screens/list/roles_list_screen.dart';
+import 'screens/list/transactions_list_screen.dart';
 
 void main() async {
   try {
@@ -156,9 +162,9 @@ class MyApp extends StatelessWidget {
 
 class HomeScreen extends StatefulWidget {
   final int userRole;
-  final int UserId;
+  final int userId;
 
-  HomeScreen({required this.userRole, required this.UserId});
+  HomeScreen({required this.userRole, required this.userId});
 
   @override
   _HomeScreenState createState() => _HomeScreenState();
@@ -352,13 +358,47 @@ class _HomeScreenState extends State<HomeScreen> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => table == 'Журнал действий'
-                                    ? const AdminLogsScreen()
-                                    : TableDataScreen(
-                                        tableName: table,
-                                        userRole: widget.userRole,
-                                        UserId: widget.UserId,
-                                      ),
+                                builder: (context) {
+                                  if (table == 'Журнал действий') {
+                                    return const AdminLogsScreen();
+                                  } else if (table == 'Товары') {
+                                    return ProductsListScreen(
+                                      userRole: widget.userRole,
+                                      userId: widget.userId,
+                                    );
+                                  } else if (table == 'Пользователи') {
+                                    return UsersListScreen(
+                                      userRole: widget.userRole,
+                                      userId: widget.userId,
+                                    );
+                                  } else if (table == 'Категории') {
+                                    return CategoriesListScreen(
+                                      userRole: widget.userRole,
+                                      userId: widget.userId,
+                                    );
+                                  } else if (table == 'Поставщики') {
+                                    return SuppliersListScreen(
+                                      userRole: widget.userRole,
+                                      userId: widget.userId,
+                                    );
+                                  } else if (table == 'Роли') {
+                                    return RolesListScreen(
+                                      userRole: widget.userRole,
+                                      userId: widget.userId,
+                                    );
+                                  } else if (table == 'Накладная') {
+                                    return TransactionsListScreen(
+                                      userRole: widget.userRole,
+                                      userId: widget.userId,
+                                    );
+                                  } else {
+                                    return TableDataScreen(
+                                      tableName: table,
+                                      userRole: widget.userRole,
+                                      userId: widget.userId,
+                                    );
+                                  }
+                                },
                               ),
                             );
                           },
@@ -396,12 +436,12 @@ class ChartData {
 class TableDataScreen extends StatefulWidget {
   final String tableName;
   final int userRole;
-  final int UserId;
+  final int userId;
 
   TableDataScreen({
     required this.tableName,
     required this.userRole,
-    required this.UserId,
+    required this.userId,
   });
 
   @override
@@ -473,31 +513,7 @@ class _TableDataScreenState extends State<TableDataScreen> {
     final db = await dbHelper.database;
     final String englishTableName = _getEnglishTableName(widget.tableName);
 
-    if (englishTableName == 'Products') {
-      final data = await db.rawQuery('''
-        SELECT 
-          p.*,
-          c.category_id,
-          s.supplier_id,
-          c.name as category_name,
-          s.name as supplier_name
-        FROM Products p
-        LEFT JOIN Categories c ON p.category_id = c.category_id
-        LEFT JOIN Suppliers s ON p.supplier_id = s.supplier_id
-      ''');
-
-      setState(() {
-        tableData = data.map((row) {
-          final newRow = Map<String, dynamic>.from(row);
-          newRow['category_id'] = row['category_name'] ?? 'Нет категории';
-          newRow['supplier_id'] = row['supplier_name'] ?? 'Нет поставщика';
-          newRow.remove('category_id');
-          newRow.remove('supplier_id');
-          return newRow;
-        }).toList();
-        filteredData = tableData;
-      });
-    } else if (englishTableName == 'Transactions') {
+    if (englishTableName == 'Transactions') {
       final data = await db.rawQuery('''
         SELECT 
           t.transaction_id,
@@ -524,14 +540,15 @@ class _TableDataScreenState extends State<TableDataScreen> {
           u.surname,
           u.password,
           u.created_at,
-          r.role_name as role_id
+          u.role_id,
+          r.role_name
         FROM Users u
         LEFT JOIN Roles r ON u.role_id = r.role_id
       ''');
       setState(() {
         tableData = data.map((row) {
           final newRow = Map<String, dynamic>.from(row);
-          newRow['role_id'] = row['role_id'] ?? 'Роль не указана';
+          newRow['role_name'] = row['role_name'] ?? 'Роль не указана';
           return newRow;
         }).toList();
         filteredData = tableData;
@@ -616,7 +633,7 @@ class _TableDataScreenState extends State<TableDataScreen> {
                         MaterialPageRoute(
                           builder: (context) => AddTransactionsScreen(
                             currentUserRole: widget.userRole,
-                            currentUserId: widget.UserId,
+                            currentUserId: widget.userId,
                           ),
                         ),
                       );
@@ -694,10 +711,12 @@ class _TableDataScreenState extends State<TableDataScreen> {
                     context,
                     MaterialPageRoute(
                       builder: (context) =>
-                          AddRoleScreen(currentUserRole: widget.userRole),
+                          AddRoleScreen(
+                            currentUserRole: widget.userRole,
+                          ),
                     ),
                   );
-                  fetchTableData(); // Обновляем данные после возврата
+                  fetchTableData();
                 },
               ),
           if (widget.tableName == 'Пользователи')
@@ -1011,7 +1030,9 @@ class _TableDataScreenState extends State<TableDataScreen> {
     if (widget.tableName == 'Пользователи') {
       final db = await dbHelper.database;
       roles = await db.query('Roles');
-      selectedRoleId = row['role_id'] as int?;
+      selectedRoleId = row['role_id'] is String 
+          ? int.tryParse(row['role_id']) 
+          : row['role_id'] as int?;
     }
 
     if (widget.tableName == 'Товары') {
@@ -1094,13 +1115,14 @@ class _TableDataScreenState extends State<TableDataScreen> {
                       items: categories.map((category) {
                         return DropdownMenuItem<int>(
                           value: category['category_id'] as int?,
-                          child: Text((category['name'] as String?) ?? ''),
+                          child: Text(category['name'] as String? ?? ''),
                         );
                       }).toList(),
                       onChanged: (value) {
                         setState(() {
                           selectedCategoryId = value;
                           editedData['category_id'] = value;
+                          editedData['category_id_original'] = value;
                         });
                       },
                     ),
@@ -1121,13 +1143,14 @@ class _TableDataScreenState extends State<TableDataScreen> {
                       items: suppliers.map((supplier) {
                         return DropdownMenuItem<int>(
                           value: supplier['supplier_id'] as int?,
-                          child: Text((supplier['name'] as String?) ?? ''),
+                          child: Text(supplier['name'] as String? ?? ''),
                         );
                       }).toList(),
                       onChanged: (value) {
                         setState(() {
                           selectedSupplierId = value;
                           editedData['supplier_id'] = value;
+                          editedData['supplier_id_original'] = value;
                         });
                       },
                     ),
@@ -1187,6 +1210,29 @@ class _TableDataScreenState extends State<TableDataScreen> {
     final primaryKey = getPrimaryKey(widget.tableName);
     final String englishTableName = _getEnglishTableName(widget.tableName);
 
+    // Создаем копию данных для обновления
+    final updateData = Map<String, dynamic>.from(item);
+    
+    // Удаляем поля, которых нет в таблице
+    updateData.remove('role_name');
+    updateData.remove('category_name');
+    updateData.remove('supplier_name');
+
+    // Обработка специфических полей для разных таблиц
+    if (widget.tableName == 'Товары') {
+      // Используем оригинальные ID для category_id и supplier_id
+      if (item['category_id_original'] != null) {
+        updateData['category_id'] = item['category_id_original'];
+      }
+      if (item['supplier_id_original'] != null) {
+        updateData['supplier_id'] = item['supplier_id_original'];
+      }
+    }
+    
+    // Удаляем оригинальные ID после использования
+    updateData.remove('category_id_original');
+    updateData.remove('supplier_id_original');
+    
     // Логируем обновление пользователя
     if (widget.tableName == 'Пользователи') {
       final oldUser = tableData.firstWhere(
@@ -1204,7 +1250,7 @@ class _TableDataScreenState extends State<TableDataScreen> {
 
     await db.update(
       englishTableName,
-      item,
+      updateData,
       where: '$primaryKey = ?',
       whereArgs: [item[primaryKey]],
     );

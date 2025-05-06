@@ -121,7 +121,9 @@ class DatabaseHelper {
     await db.execute('''
       CREATE TABLE Roles (
         role_id INTEGER PRIMARY KEY AUTOINCREMENT,
-        role_name TEXT UNIQUE NOT NULL
+        name TEXT UNIQUE NOT NULL,
+        description TEXT,
+        permissions TEXT
       )
     ''');
 
@@ -230,12 +232,20 @@ class DatabaseHelper {
 
       // Добавляем роли
       final adminRoleId = await db.insert('Roles', {
-        'role_name': 'Администратор',
+        'name': 'Администратор',
+        'description': 'Полный доступ ко всем функциям системы',
+        'permissions': 'users_view,users_create,users_edit,users_delete,'
+            'roles_view,roles_create,roles_edit,roles_delete,'
+            'products_view,products_create,products_edit,products_delete,'
+            'categories_view,categories_create,categories_edit,categories_delete,'
+            'suppliers_view,suppliers_create,suppliers_edit,suppliers_delete',
       });
       print('Created admin role with ID: $adminRoleId');
 
       final userRoleId = await db.insert('Roles', {
-        'role_name': 'Пользователь',
+        'name': 'Пользователь',
+        'description': 'Базовый доступ к системе',
+        'permissions': 'products_view,categories_view,suppliers_view',
       });
       print('Created user role with ID: $userRoleId');
 
@@ -1095,6 +1105,52 @@ class DatabaseHelper {
       where: 'role_id = ?',
       whereArgs: [roleId],
     );
+  }
+
+  Future<int> insert(String table, Map<String, dynamic> row) async {
+    Database db = await database;
+    return await db.insert(table, row);
+  }
+
+  Future<List<Map<String, dynamic>>> queryAllRows(String table) async {
+    Database db = await database;
+    return await db.query(table);
+  }
+
+  Future<List<Map<String, dynamic>>> queryRows(String table, String column, dynamic value) async {
+    Database db = await database;
+    return await db.query(table, where: '$column = ?', whereArgs: [value]);
+  }
+
+  Future<int> delete(String table, String column, dynamic value) async {
+    Database db = await database;
+    return await db.delete(table, where: '$column = ?', whereArgs: [value]);
+  }
+
+  Future<bool> checkPermission(int userId, int userRole, String table, String action) async {
+    Database db = await database;
+    
+    // Проверяем разрешения для роли
+    final List<Map<String, dynamic>> permissions = await db.query(
+      'RolePermissions',
+      where: 'role_id = ? AND table_name = ?',
+      whereArgs: [userRole, table],
+    );
+
+    if (permissions.isEmpty) return false;
+
+    switch (action) {
+      case 'view':
+        return permissions[0]['can_view'] == 1;
+      case 'create':
+        return permissions[0]['can_create'] == 1;
+      case 'edit':
+        return permissions[0]['can_update'] == 1;
+      case 'delete':
+        return permissions[0]['can_delete'] == 1;
+      default:
+        return false;
+    }
   }
 }
 
