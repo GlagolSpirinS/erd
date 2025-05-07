@@ -28,9 +28,9 @@ DisableProgramGroupPage=yes
 ; Uncomment the following line to run in non administrative install mode (install for current user only).
 ;PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
-OutputDir=C:\Users\root\Documents\flutter\erd\installer
+OutputDir=C:\Users\root\Documents\GitHub\erd\installer
 OutputBaseFilename=erdsetup
-SetupIconFile=C:\Users\root\Documents\flutter\erd\installer\icon.ico
+SetupIconFile=C:\Users\root\Documents\GitHub\erd\installer\icon.ico
 SolidCompression=yes
 WizardStyle=modern
 
@@ -41,15 +41,15 @@ Name: "russian"; MessagesFile: "compiler:Languages\Russian.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-Source: "C:\Users\root\Documents\flutter\erd\build\windows\x64\runner\Release\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
-Source: "C:\Users\root\Documents\flutter\erd\build\windows\x64\runner\Release\cloud_firestore_plugin.lib"; DestDir: "{app}"; Flags: ignoreversion
-Source: "C:\Users\root\Documents\flutter\erd\build\windows\x64\runner\Release\erd.exp"; DestDir: "{app}"; Flags: ignoreversion
-Source: "C:\Users\root\Documents\flutter\erd\build\windows\x64\runner\Release\erd.lib"; DestDir: "{app}"; Flags: ignoreversion
-Source: "C:\Users\root\Documents\flutter\erd\build\windows\x64\runner\Release\firebase_core_plugin.lib"; DestDir: "{app}"; Flags: ignoreversion
-Source: "C:\Users\root\Documents\flutter\erd\build\windows\x64\runner\Release\flutter_windows.dll"; DestDir: "{app}"; Flags: ignoreversion
-Source: "C:\Users\root\Documents\flutter\erd\build\windows\x64\runner\Release\sqlite3.dll"; DestDir: "{app}"; Flags: ignoreversion
-Source: "C:\Users\root\Documents\flutter\erd\build\windows\x64\runner\Release\sqlite3_flutter_libs_plugin.dll"; DestDir: "{app}"; Flags: ignoreversion
-Source: "C:\Users\root\Documents\flutter\erd\build\windows\x64\runner\Release\data\*"; DestDir: "{app}\data"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "C:\Users\root\Documents\GitHub\erd\build\windows\x64\runner\Release\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
+Source: "C:\Users\root\Documents\GitHub\erd\build\windows\x64\runner\Release\cloud_firestore_plugin.lib"; DestDir: "{app}"; Flags: ignoreversion
+Source: "C:\Users\root\Documents\GitHub\erd\build\windows\x64\runner\Release\erd.exp"; DestDir: "{app}"; Flags: ignoreversion
+Source: "C:\Users\root\Documents\GitHub\erd\build\windows\x64\runner\Release\erd.lib"; DestDir: "{app}"; Flags: ignoreversion
+Source: "C:\Users\root\Documents\GitHub\erd\build\windows\x64\runner\Release\firebase_core_plugin.lib"; DestDir: "{app}"; Flags: ignoreversion
+Source: "C:\Users\root\Documents\GitHub\erd\build\windows\x64\runner\Release\flutter_windows.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "C:\Users\root\Documents\GitHub\erd\build\windows\x64\runner\Release\sqlite3.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "C:\Users\root\Documents\GitHub\erd\build\windows\x64\runner\Release\sqlite3_flutter_libs_plugin.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "C:\Users\root\Documents\GitHub\erd\build\windows\x64\runner\Release\data\*"; DestDir: "{app}\data"; Flags: ignoreversion recursesubdirs createallsubdirs
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
 [Icons]
