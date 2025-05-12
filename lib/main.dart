@@ -27,50 +27,63 @@ import 'screens/list/suppliers_list_screen.dart';
 import 'screens/list/roles_list_screen.dart';
 import 'screens/list/transactions_list_screen.dart';
 
+// Константы для сообщений об ошибках
+const String ERROR_EMPTY_FIELD = 'Поле не может быть пустым';
+const String ERROR_INVALID_EMAIL = 'Неверный формат электронной почты';
+const String ERROR_INVALID_PHONE = 'Неверный формат номера телефона';
+const String ERROR_INVALID_PRICE = 'Цена должна быть положительным числом';
+const String ERROR_INVALID_QUANTITY = 'Количество должно быть положительным числом';
+const String ERROR_DATABASE = 'Ошибка базы данных: ';
+const String ERROR_VALIDATION = 'Ошибка валидации: ';
+const String SUCCESS_UPDATE = 'Запись успешно обновлена';
+
+// Класс для пользовательских исключений
+class ValidationException implements Exception {
+  final String message;
+  ValidationException(this.message);
+  
+  @override
+  String toString() => message;
+}
+
 void main() async {
   try {
-    print('Initializing application...');
+    print('Инициализация приложения...');
 
-    // Сначала инициализируем Flutter bindings
-    print('Initializing Flutter bindings...');
+    print('Инициализация привязок Flutter...');
     WidgetsFlutterBinding.ensureInitialized();
-    print('Flutter bindings initialized successfully');
+    print('Привязки Flutter успешно инициализированы');
 
-    // Инициализация FFI для работы с SQLite на Windows
-    print('Initializing SQLite FFI...');
+    print('Инициализация SQLite FFI...');
     if (kIsWeb) {
-      // Use web implementation on the web
       databaseFactory = databaseFactoryFfiWeb;
     } else {
-      // Use ffi on desktop platforms
       if (Platform.isLinux || Platform.isWindows) {
         sqfliteFfiInit();
         databaseFactory = databaseFactoryFfi;
       }
     }
-    print('SQLite FFI initialized successfully');
+    print('SQLite FFI успешно инициализирован');
 
-    // Инициализация Firebase после Flutter bindings
-    print('Initializing Firebase...');
+    print('Инициализация Firebase...');
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
-    print('Firebase initialized successfully');
+    print('Firebase успешно инициализирован');
 
-    print('Creating database helper...');
+    print('Создание помощника базы данных...');
     final dbHelper = DatabaseHelper();
-    print('Database helper created successfully');
+    print('Помощник базы данных успешно создан');
 
-    // Инициализируем базу данных
-    print('Initializing database...');
+    print('Инициализация базы данных...');
     await dbHelper.database;
-    print('Database initialized successfully');
+    print('База данных успешно инициализирована');
 
-    print('Starting application...');
+    print('Запуск приложения...');
     runApp(MyApp());
   } catch (e, stackTrace) {
-    print('Error initializing application: $e');
-    print('Stack trace: $stackTrace');
+    print('Ошибка инициализации приложения: $e');
+    print('Трассировка стека: $stackTrace');
 
     // В случае ошибки инициализации, показываем сообщение об ошибке
     runApp(
@@ -571,38 +584,42 @@ class _TableDataScreenState extends State<TableDataScreen> {
         _sortAscending = true;
       }
 
-      // Создаем новый список для сортировки
-      filteredData = List<Map<String, dynamic>>.from(filteredData);
+      // Создаем глубокую копию данных
+      filteredData = filteredData.map((item) => Map<String, dynamic>.from(item)).toList();
 
       filteredData.sort((a, b) {
-        final aValue = a[column];
-        final bValue = b[column];
+        var aValue = a[column];
+        var bValue = b[column];
 
         // Обработка null значений
         if (aValue == null && bValue == null) return 0;
-        if (aValue == null) return _sortAscending ? -1 : 1;
-        if (bValue == null) return _sortAscending ? 1 : -1;
+        if (aValue == null) return _sortAscending ? 1 : -1;
+        if (bValue == null) return _sortAscending ? -1 : 1;
 
-        // Сортировка чисел
+        // Преобразование строковых чисел в числовые значения
+        if (aValue is String && bValue is String) {
+          final aNum = num.tryParse(aValue);
+          final bNum = num.tryParse(bValue);
+          if (aNum != null && bNum != null) {
+            aValue = aNum;
+            bValue = bNum;
+          }
+        }
+
+        // Сортировка в зависимости от типа данных
+        int compareResult;
         if (aValue is num && bValue is num) {
-          return _sortAscending
-              ? aValue.compareTo(bValue)
-              : bValue.compareTo(aValue);
+          compareResult = aValue.compareTo(bValue);
+        } else if (aValue is DateTime && bValue is DateTime) {
+          compareResult = aValue.compareTo(bValue);
+        } else {
+          // Преобразование в строки для сравнения и удаление пробелов
+          final aString = aValue.toString().trim().toLowerCase();
+          final bString = bValue.toString().trim().toLowerCase();
+          compareResult = aString.compareTo(bString);
         }
 
-        // Сортировка дат
-        if (aValue is DateTime && bValue is DateTime) {
-          return _sortAscending
-              ? aValue.compareTo(bValue)
-              : bValue.compareTo(aValue);
-        }
-
-        // Сортировка строк с учетом регистра
-        final aString = aValue.toString().toLowerCase();
-        final bString = bValue.toString().toLowerCase();
-        return _sortAscending
-            ? aString.compareTo(bString)
-            : bString.compareTo(aString);
+        return _sortAscending ? compareResult : -compareResult;
       });
     });
   }
@@ -1205,61 +1222,134 @@ class _TableDataScreenState extends State<TableDataScreen> {
     );
   }
 
+  // Метод валидации данных
+  void validateData(Map<String, dynamic> data, String tableName) {
+    // Валидация email
+    if (data.containsKey('email') && data['email'] != null && data['email'].toString().isNotEmpty) {
+      final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+      if (!emailRegex.hasMatch(data['email'].toString())) {
+        throw ValidationException(ERROR_INVALID_EMAIL);
+      }
+    }
+
+    // Валидация телефона
+    if (data.containsKey('phone') && data['phone'] != null && data['phone'].toString().isNotEmpty) {
+      final phoneRegex = RegExp(r'^\+?[\d\s-\(\)]+$');
+      if (!phoneRegex.hasMatch(data['phone'].toString())) {
+        throw ValidationException(ERROR_INVALID_PHONE);
+      }
+    }
+
+    // Валидация цены для товаров
+    if (tableName == 'Товары' && data.containsKey('price')) {
+      final price = num.tryParse(data['price'].toString());
+      if (price == null || price <= 0) {
+        throw ValidationException(ERROR_INVALID_PRICE);
+      }
+    }
+
+    // Валидация количества
+    if (data.containsKey('quantity')) {
+      final quantity = int.tryParse(data['quantity'].toString());
+      if (quantity == null || quantity < 0) {
+        throw ValidationException(ERROR_INVALID_QUANTITY);
+      }
+    }
+
+    // Проверка обязательных полей
+    data.forEach((key, value) {
+      if (value == null || (value is String && value.trim().isEmpty)) {
+        if (key != 'description' && key != 'email' && key != 'phone') { // Необязательные поля
+          throw ValidationException('$ERROR_EMPTY_FIELD: ${translations[key] ?? key}');
+        }
+      }
+    });
+  }
+
   Future<void> _updateItem(Map<String, dynamic> item) async {
-    final db = await dbHelper.database;
-    final primaryKey = getPrimaryKey(widget.tableName);
-    final String englishTableName = _getEnglishTableName(widget.tableName);
+    try {
+      final db = await dbHelper.database;
+      final primaryKey = getPrimaryKey(widget.tableName);
+      final String englishTableName = _getEnglishTableName(widget.tableName);
 
-    // Создаем копию данных для обновления
-    final updateData = Map<String, dynamic>.from(item);
-    
-    // Удаляем поля, которых нет в таблице
-    updateData.remove('role_name');
-    updateData.remove('category_name');
-    updateData.remove('supplier_name');
+      // Создаем копию данных для обновления
+      final updateData = Map<String, dynamic>.from(item);
+      
+      // Удаляем служебные поля
+      updateData.remove('role_name');
+      updateData.remove('category_name');
+      updateData.remove('supplier_name');
 
-    // Обработка специфических полей для разных таблиц
-    if (widget.tableName == 'Товары') {
-      // Используем оригинальные ID для category_id и supplier_id
-      if (item['category_id_original'] != null) {
-        updateData['category_id'] = item['category_id_original'];
+      // Валидация данных перед обновлением
+      validateData(updateData, widget.tableName);
+
+      // Обработка специфических полей для разных таблиц
+      if (widget.tableName == 'Товары') {
+        if (item['category_id_original'] != null) {
+          updateData['category_id'] = item['category_id_original'];
+        }
+        if (item['supplier_id_original'] != null) {
+          updateData['supplier_id'] = item['supplier_id_original'];
+        }
       }
-      if (item['supplier_id_original'] != null) {
-        updateData['supplier_id'] = item['supplier_id_original'];
-      }
-    }
-    
-    // Удаляем оригинальные ID после использования
-    updateData.remove('category_id_original');
-    updateData.remove('supplier_id_original');
-    
-    // Логируем обновление пользователя
-    if (widget.tableName == 'Пользователи') {
-      final oldUser = tableData.firstWhere(
-        (row) => row[primaryKey] == item[primaryKey],
-      );
-      final changes = _getUserChanges(oldUser, item);
-      if (changes.isNotEmpty) {
-        await dbHelper.logUserUpdate(
-          item[primaryKey],
-          '${item['name']} ${item['surname']}',
-          changes,
+      
+      // Удаляем оригинальные ID после использования
+      updateData.remove('category_id_original');
+      updateData.remove('supplier_id_original');
+      
+      // Логируем обновление пользователя
+      if (widget.tableName == 'Пользователи') {
+        final oldUser = tableData.firstWhere(
+          (row) => row[primaryKey] == item[primaryKey],
         );
+        final changes = _getUserChanges(oldUser, item);
+        if (changes.isNotEmpty) {
+          await dbHelper.logUserUpdate(
+            item[primaryKey],
+            '${item['name']} ${item['surname']}',
+            changes,
+          );
+        }
       }
+
+      await db.update(
+        englishTableName,
+        updateData,
+        where: '$primaryKey = ?',
+        whereArgs: [item[primaryKey]],
+      );
+
+      if (!mounted) return;
+      
+      ScaffoldMessenger.of(this.context).showSnackBar(
+        SnackBar(
+          content: Text(SUCCESS_UPDATE),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      fetchTableData();
+    } on ValidationException catch (e) {
+      if (!mounted) return;
+      
+      ScaffoldMessenger.of(this.context).showSnackBar(
+        SnackBar(
+          content: Text(ERROR_VALIDATION + e.toString()),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 5),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      
+      ScaffoldMessenger.of(this.context).showSnackBar(
+        SnackBar(
+          content: Text(ERROR_DATABASE + e.toString()),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 5),
+        ),
+      );
     }
-
-    await db.update(
-      englishTableName,
-      updateData,
-      where: '$primaryKey = ?',
-      whereArgs: [item[primaryKey]],
-    );
-
-    ScaffoldMessenger.of(this.context).showSnackBar(
-      SnackBar(content: Text('Запись успешно обновлена')),
-    );
-
-    fetchTableData();
   }
 
   String _getUserChanges(
@@ -1413,7 +1503,7 @@ class _TableDataScreenState extends State<TableDataScreen> {
 
       if (selectedDirectory == null) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context as BuildContext).showSnackBar(
+        ScaffoldMessenger.of(this.context).showSnackBar(
           SnackBar(content: Text('Экспорт отменен')),
         );
         return;
@@ -1429,7 +1519,7 @@ class _TableDataScreenState extends State<TableDataScreen> {
       await file.writeAsBytes(excel.encode()!);
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context as BuildContext).showSnackBar(
+      ScaffoldMessenger.of(this.context).showSnackBar(
         SnackBar(
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -1448,7 +1538,7 @@ class _TableDataScreenState extends State<TableDataScreen> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context as BuildContext).showSnackBar(
+      ScaffoldMessenger.of(this.context).showSnackBar(
         SnackBar(content: Text('Ошибка при создании Excel файла: $e')),
       );
     }
@@ -1601,7 +1691,7 @@ class _TableDataScreenState extends State<TableDataScreen> {
 
       if (selectedDirectory == null) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context as BuildContext).showSnackBar(
+        ScaffoldMessenger.of(this.context).showSnackBar(
           SnackBar(content: Text('Экспорт отменен')),
         );
         return;
@@ -1618,7 +1708,7 @@ class _TableDataScreenState extends State<TableDataScreen> {
       await file.writeAsBytes(excel.encode()!);
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context as BuildContext).showSnackBar(
+      ScaffoldMessenger.of(this.context).showSnackBar(
         SnackBar(
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -1637,7 +1727,7 @@ class _TableDataScreenState extends State<TableDataScreen> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context as BuildContext).showSnackBar(
+      ScaffoldMessenger.of(this.context).showSnackBar(
         SnackBar(content: Text('Ошибка при создании Excel файла: $e')),
       );
     }

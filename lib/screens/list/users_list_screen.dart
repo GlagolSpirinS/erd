@@ -27,7 +27,7 @@ class _UsersListScreenState extends DocumentListState<UsersListScreen> {
         'surname': 'Фамилия',
         'password': 'Пароль',
         'created_at': 'Дата создания',
-        'role_id': 'Роль',
+        'role_name': 'Роль',
       };
 
   @override

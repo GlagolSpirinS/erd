@@ -164,18 +164,83 @@ class _TransactionsListScreenState extends DocumentListState<TransactionsListScr
 
   @override
   Future<void> showEditDialog(Map<String, dynamic> row) async {
-    // Редактирование накладных не поддерживается
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Редактирование накладных не поддерживается')),
+    await showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Детали накладной'),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: columnTranslations.entries.map((entry) {
+                final value = row[entry.key]?.toString() ?? 'Нет данных';
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        entry.value,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(value),
+                      const Divider(),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Закрыть'),
+            ),
+          ],
+        );
+      },
     );
   }
 
   Future<void> _exportToExcel() async {
+    // Показываем диалог выбора типа накладной
+    final String? transactionType = await showDialog<String>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Выберите тип накладной'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: Icon(Icons.arrow_downward, color: Colors.green),
+                title: Text('Приходные накладные'),
+                onTap: () => Navigator.pop(context, 'Приход'),
+              ),
+              ListTile(
+                leading: Icon(Icons.arrow_upward, color: Colors.red),
+                title: Text('Расходные накладные'),
+                onTap: () => Navigator.pop(context, 'Расход'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (transactionType == null) return; // Пользователь отменил выбор
+
     try {
       final excel = excel_lib.Excel.createExcel();
       excel.delete('Sheet1');
 
-      final sheet = excel['Накладные'];
+      final sheetName = transactionType == 'Приход' ? 'Приходные накладные' : 'Расходные накладные';
+      final sheet = excel[sheetName];
 
       // Добавляем заголовки
       sheet.cell(excel_lib.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0))
@@ -191,9 +256,12 @@ class _TransactionsListScreenState extends DocumentListState<TransactionsListScr
       sheet.cell(excel_lib.CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: 0))
           .value = excel_lib.TextCellValue('Пользователь');
 
+      // Фильтруем данные по выбранному типу
+      final filteredTransactions = filteredData.where((t) => t['transaction_type'] == transactionType).toList();
+
       // Заполняем данные
-      for (var i = 0; i < filteredData.length; i++) {
-        final transaction = filteredData[i];
+      for (var i = 0; i < filteredTransactions.length; i++) {
+        final transaction = filteredTransactions[i];
         
         sheet.cell(excel_lib.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: i + 1))
             .value = excel_lib.TextCellValue(transaction['transaction_id'].toString());
@@ -209,6 +277,15 @@ class _TransactionsListScreenState extends DocumentListState<TransactionsListScr
             .value = excel_lib.TextCellValue(transaction['user_name']?.toString() ?? '');
       }
 
+      // Добавляем итоговую строку
+      final lastRow = filteredTransactions.length + 1;
+      sheet.cell(excel_lib.CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: lastRow))
+          .value = excel_lib.TextCellValue('ИТОГО:');
+      sheet.cell(excel_lib.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: lastRow))
+          .value = excel_lib.IntCellValue(
+            filteredTransactions.fold<int>(0, (sum, t) => sum + (t['quantity'] as int))
+          );
+
       String? selectedDirectory = await FilePicker.platform.getDirectoryPath(
         dialogTitle: 'Выберите папку для сохранения Excel файла',
       );
@@ -221,7 +298,8 @@ class _TransactionsListScreenState extends DocumentListState<TransactionsListScr
       }
 
       final now = DateTime.now().toString().replaceAll(RegExp(r'[^0-9]'), '');
-      final filePath = '$selectedDirectory${Platform.pathSeparator}накладные_$now.xlsx';
+      final fileName = transactionType == 'Приход' ? 'приходные' : 'расходные';
+      final filePath = '$selectedDirectory${Platform.pathSeparator}${fileName}_накладные_$now.xlsx';
 
       final file = File(filePath);
       await file.writeAsBytes(excel.encode()!);
