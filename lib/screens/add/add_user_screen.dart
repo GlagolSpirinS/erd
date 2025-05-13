@@ -14,13 +14,12 @@ class _AddUserScreenState extends State<AddUserScreen> {
   final _formKey = GlobalKey<FormState>();
   final DatabaseHelper dbHelper = DatabaseHelper();
 
-  // Поля для хранения данных из формы
   String _name = '';
   String _surname = '';
   String _password = '';
-  int? _roleId; // Изначально роль не выбрана
+  int? _roleId;
 
-  List<Map<String, dynamic>> _roles = []; // Список ролей
+  List<Map<String, dynamic>> _roles = [];
 
   @override
   void initState() {
@@ -28,15 +27,13 @@ class _AddUserScreenState extends State<AddUserScreen> {
     _loadRoles();
   }
 
-  // Загрузка ролей из базы данных
   Future<void> _loadRoles() async {
     final db = await dbHelper.database;
     final List<Map<String, dynamic>> roles = await db.query('Roles');
     setState(() {
       _roles = roles;
       if (_roles.isNotEmpty) {
-        _roleId =
-            _roles[0]['role_id']; // Устанавливаем первую роль по умолчанию
+        _roleId = _roles[0]['role_id'];
       }
     });
   }
@@ -51,15 +48,22 @@ class _AddUserScreenState extends State<AddUserScreen> {
           key: _formKey,
           child: Column(
             children: [
+              // Логин
               TextFormField(
                 decoration: InputDecoration(
                   labelText: 'Логин',
-                  helperText:
-                      'Это имя будет использоваться для входа в систему',
+                  helperText: 'Только буквы, минимум 3 символа',
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Введите логин';
+                  }
+                  if (value.length < 3) {
+                    return 'Логин должен быть не менее 3 символов';
+                  }
+                  final nameRegex = RegExp(r'^[a-zA-Zа-яА-ЯёЁ]+$');
+                  if (!nameRegex.hasMatch(value)) {
+                    return 'Логин должен содержать только буквы';
                   }
                   return null;
                 },
@@ -67,12 +71,24 @@ class _AddUserScreenState extends State<AddUserScreen> {
                   _name = value!;
                 },
               ),
-              SizedBox(height: 5),
+              SizedBox(height: 15),
+
+              // Фамилия
               TextFormField(
-                decoration: InputDecoration(labelText: 'Фамилия'),
+                decoration: InputDecoration(
+                  labelText: 'Фамилия',
+                  helperText: 'Только буквы, минимум 3 символа',
+                ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Введите фамилию';
+                  }
+                  if (value.length < 3) {
+                    return 'Фамилия должна быть не менее 3 символов';
+                  }
+                  final surnameRegex = RegExp(r'^[a-zA-Zа-яА-ЯёЁ]+$');
+                  if (!surnameRegex.hasMatch(value)) {
+                    return 'Фамилия должна содержать только буквы';
                   }
                   return null;
                 },
@@ -80,13 +96,30 @@ class _AddUserScreenState extends State<AddUserScreen> {
                   _surname = value!;
                 },
               ),
-              SizedBox(height: 5),
+              SizedBox(height: 15),
+
+              // Пароль
               TextFormField(
-                decoration: InputDecoration(labelText: 'Пароль'),
+                decoration: InputDecoration(
+                  labelText: 'Пароль',
+                  helperText:
+                      'Минимум 8 символов, 1 заглавная, 1 строчная, 1 цифра, 1 спецсимвол',
+                ),
                 obscureText: true,
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Введите пароль';
+                  }
+                  if (value.length < 8) {
+                    return 'Пароль должен быть не менее 8 символов';
+                  }
+                  final hasUpper = RegExp(r'[A-Z]').hasMatch(value);
+                  final hasLower = RegExp(r'[a-z]').hasMatch(value);
+                  final hasDigit = RegExp(r'[0-9]').hasMatch(value);
+                  final hasSpecial = RegExp(r'[!@#$%^&*(),.?":{}|<>]').hasMatch(value);
+
+                  if (!(hasUpper && hasLower && hasDigit && hasSpecial)) {
+                    return 'Пароль должен содержать:\n- Заглавную букву\n- Строчную букву\n- Цифру\n- Специальный символ';
                   }
                   return null;
                 },
@@ -95,27 +128,27 @@ class _AddUserScreenState extends State<AddUserScreen> {
                 },
               ),
               SizedBox(height: 15),
+
+              // Роль
               _roles.isEmpty
                   ? CircularProgressIndicator()
                   : DropdownButtonFormField<int>(
-                    value: _roleId,
-                    decoration: InputDecoration(labelText: 'Роль'),
-                    items:
-                        _roles.map((role) {
-                          return DropdownMenuItem<int>(
-                            value: role['role_id'],
-                            child: Text(
-                              role['role_name'] ?? 'Неизвестная роль',
-                            ),
-                          );
-                        }).toList(),
-                    onChanged: (value) {
-                      setState(() {
-                        _roleId = value;
-                      });
-                    },
-                  ),
+                      value: _roleId,
+                      decoration: InputDecoration(labelText: 'Роль'),
+                      items: _roles.map((role) {
+                        return DropdownMenuItem<int>(
+                          value: role['role_id'],
+                          child: Text(role['role_name'] ?? 'Неизвестная роль'),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          _roleId = value;
+                        });
+                      },
+                    ),
               SizedBox(height: 20),
+
               ElevatedButton(
                 onPressed: _submitForm,
                 child: Text('Добавить пользователя'),
@@ -131,7 +164,6 @@ class _AddUserScreenState extends State<AddUserScreen> {
     if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
 
-      // Проверяем права доступа
       final hasPermission = await dbHelper.checkRolePermission(
         widget.currentUserRole,
         'Users',
@@ -140,9 +172,7 @@ class _AddUserScreenState extends State<AddUserScreen> {
 
       if (!hasPermission) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('У вас нет прав для создания пользователей'),
-          ),
+          SnackBar(content: Text('У вас нет прав для создания пользователей')),
         );
         return;
       }
@@ -156,11 +186,10 @@ class _AddUserScreenState extends State<AddUserScreen> {
           'role_id': _roleId,
         });
 
-        // Логируем создание пользователя
         await dbHelper.logUserCreation(userId, '$_name $_surname');
 
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Пользователь успешно добавлен')),
+          SnackBar(content: Text('Пользователь успешно добавлен')),
         );
         Navigator.pop(context);
       } catch (e) {

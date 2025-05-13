@@ -406,6 +406,7 @@ class _SuppliersListScreenState extends DocumentListState<SuppliersListScreen> {
                               sortColumn = column;
                               sortAscending = true;
                             }
+                            filteredData = filteredData.toList();
                             filteredData.sort((a, b) {
                               final aValue = a[column];
                               final bValue = b[column];

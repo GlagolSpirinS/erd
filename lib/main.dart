@@ -6,7 +6,7 @@ import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'screens/add/add_products_screen.dart';
-import 'screens/add/add_suppliers_screen.dart';
+import 'screens/add/add_supplier_screen.dart';
 import 'screens/add/add_transactions_screen.dart';
 import 'database_helper.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
