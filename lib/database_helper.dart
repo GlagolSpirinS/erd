@@ -121,7 +121,7 @@ class DatabaseHelper {
     await db.execute('''
       CREATE TABLE Roles (
         role_id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT UNIQUE NOT NULL,
+        role_name TEXT UNIQUE NOT NULL,
         description TEXT,
         permissions TEXT
       )
@@ -232,7 +232,7 @@ class DatabaseHelper {
 
       // Добавляем роли
       final adminRoleId = await db.insert('Roles', {
-        'name': 'Администратор',
+        'role_name': 'Администратор',
         'description': 'Полный доступ ко всем функциям системы',
         'permissions': 'users_view,users_create,users_edit,users_delete,'
             'roles_view,roles_create,roles_edit,roles_delete,'
@@ -243,7 +243,7 @@ class DatabaseHelper {
       print('Created admin role with ID: $adminRoleId');
 
       final userRoleId = await db.insert('Roles', {
-        'name': 'Пользователь',
+        'role_name': 'Пользователь',
         'description': 'Базовый доступ к системе',
         'permissions': 'products_view,categories_view,suppliers_view',
       });

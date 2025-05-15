@@ -183,6 +183,8 @@ class _AddRoleScreenState extends State<AddRoleScreen> {
           // Вставляем данные в таблицу Roles
           final roleId = await txn.insert('Roles', {
             'role_name': _roleName,
+            'description': 'Пользовательская роль',
+            'permissions': ''
           }, conflictAlgorithm: ConflictAlgorithm.replace);
 
           // Вставляем разрешения для каждой таблицы
