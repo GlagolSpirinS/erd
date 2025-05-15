@@ -1,3 +1,27 @@
+class Model {
+  final int id;
+  final String name;
+
+  Model({
+    required this.id,
+    required this.name,
+  });
+
+  factory Model.fromMap(Map<String, dynamic> map) {
+    return Model(
+      id: map['id'] as int,
+      name: map['name'] as String,
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'name': name,
+    };
+  }
+}
+
 class ChartData {
   final String name;
   final int value;
